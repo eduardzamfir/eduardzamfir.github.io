@@ -52,23 +52,48 @@
         </tbody></table>
         
         <table style="width:120%;border:0px;border-spacing:0px;border-collapse:separate;margin-right:auto;margin-left:auto;"><tbody>
-          <tr>
+
+          <!--SeemoRe-->
+          <tr onmouseout="seemore_stop()" onmouseover="seemore_start()" bgcolor="#ffffd0">
             <td style="padding:20px;width:10%;vertical-align:middle">
-              <img src="images/more.svg" style="border-style: none" width="200" height="auto"/>
+        
+            <div class="one">
+              <div class="two" id='lr_image'>                
+                <img src="seemore/bsd100_lr.png" style="border-style: none" width="200" height="auto"/>
+              </div>
+                <img src="seemore/bsd100_sr.png" style="border-style: none" width="200" height="auto"/>
+            </div>
+
+            <script type="text/javascript">
+              function seemore_start() {
+                document.getElementById('lr_image').style.opacity = "0";
+              }
+    
+              function seemore_stop() {
+                document.getElementById('lr_image').style.opacity = "1";
+              }
+              seemore_stop()
+            </script>
             </td>
+
             <td width="80%" valign="middle">
               <papertitle>See More Details: Efficient Image Super-Resolution by Experts Mining</papertitle>
               <br>
-              <strong>Eduard Zamfir</strong>, Zongwei Wu, Nancy Mehta, Yulun Zhang, Radu Timofte
+              <strong>Eduard Zamfir</strong>, 
+              <a href="https://sites.google.com/view/zwwu/accueil">Zongwei Wu</a>, 
+              <a href="https://scholar.google.co.in/citations?user=WwdYdlUAAAAJ&hl=en">Nancy Mehta</a>, 
+              <a href="https://yulunzhang.com">Yulun Zhang</a>, 
+              <a href="https://scholar.google.com/citations?user=u3MwH5kAAAAJ&hl=en&oi=ao">Radu Timofte</a>, 
               <br>
-              <em>arXiv</em>
+              <em>ICML 2024</em>
               <br>
               <a href="https://arxiv.org/abs/2402.03412">Paper</a> / <a href="https://github.com/eduardzamfir/seemoredetails">Code</a>
               <br>
             </td>
           </tr>
 
-
+          
+           <!--SQAD-->
           <tr>
             <td style="padding:20px;width:10%;vertical-align:middle">
               <img src="images/teaser_sqad.png" style="border-style: none" width="200" height="auto"/>
@@ -76,7 +101,7 @@
             <td width="80%" valign="middle">
               <papertitle>SQAD: Automatic Smartphone Camera Quality Assessment and Benchmarking</papertitle>
               <br>
-              Zilin Fang, Andrey Ignatov, <strong>Eduard Zamfir</strong>, Radu Timofte
+              <a href="https://dblp.org/pid/341/7848.html">Zilin Fang</a>, <a href="https://scholar.google.ch/citations?user=kBoWvhIAAAAJ&hl=en">Andrey Ignatov</a>, <strong>Eduard Zamfir</strong>, <a href="https://scholar.google.com/citations?user=u3MwH5kAAAAJ&hl=en&oi=ao">Radu Timofte</a> 
               <br>
               <em>ICCV 2023</em>
               <br>
@@ -85,22 +110,8 @@
             </td>
           </tr>
 
-          <tr>
-            <td style="padding:20px;width:10%;vertical-align:middle">
-              <img src="images/NTIRE_teaser.png" style="border-style: none" width="200" height="auto"/>
-            </td>
-            <td width="80%" valign="middle">
-              <papertitle>Efficient Deep Models for Real-Time 4k Image Super-Resolution. NTIRE 2023 Benchmark and Report </papertitle>
-              <br>
-              Marcos V. Conde, <strong>Eduard Zamfir</strong>, Radu Timofte
-              <br>
-              <em>CVPRW 2023</em>
-              <br>
-              <a href="https://openaccess.thecvf.com/content/CVPR2023W/NTIRE/papers/Conde_Efficient_Deep_Models_for_Real-Time_4K_Image_Super-Resolution._NTIRE_2023_CVPRW_2023_paper.pdf">Paper</a> / <a href="https://eduardzamfir.github.io/NTIRE23-RTSR/">Code</a>
-              <br>
-            </td>
-          </tr>
-
+      
+          <!--RT4KSR-->
           <tr>
             <td style="padding:20px;width:10%;vertical-align:middle">
               <img src="images/towards_teaser.png" style="border-style: none" width="200" height="auto"/>
@@ -108,8 +119,8 @@
             <td width="80%" valign="middle">
               <papertitle>Towards Real-Time 4K Image Super-Resolution</papertitle>
               <br>
-              <strong>Eduard Zamfir</strong>, Marcos V. Conde, Radu Timofte
-              <br>
+              <strong>Eduard Zamfir</strong>, <a href="https://mv-lab.github.io">Marcos V. Conde</a> , <a href="https://scholar.google.com/citations?user=u3MwH5kAAAAJ&hl=en&oi=ao">Radu Timofte</a> 
+              <br> 
               <em>CVPRW 2023</em>
               <br>
               <a href="https://openaccess.thecvf.com/content/CVPR2023W/NTIRE/papers/Zamfir_Towards_Real-Time_4K_Image_Super-Resolution_CVPRW_2023_paper.pdf">Paper</a> / <a href="https://github.com/eduardzamfir/RT4KSR">Code</a>
@@ -117,6 +128,8 @@
             </td>
           </tr>
 
+
+          <!--Self-Adapt-->
           <tr>
             <td style="padding:20px;width:10%;vertical-align:middle">
               <img src="images/main.gif" style="border-style: none" width="200" height="auto"/>
@@ -124,7 +137,10 @@
             <td width="80%" valign="middle">
               <papertitle>Semantic Self-adaptation: Enhancing Generalization with a Single Sample</papertitle>
               <br>
-              Sherwin Bahmani*, Oliver Hahn*, <strong>Eduard Zamfir*</strong>, Nikita Araslanov, Daniel Cremers, Stefan Roth
+              <a href="https://sherwinbahmani.github.io">Sherwin Bahmani</a>*,
+              <a href="https://olvrhhn.github.io">Oliver Hahn</a>*,
+              <strong>Eduard Zamfir*</strong>, 
+              <a href="https://arnike.github.io">Nikita Araslanov</a>, <a href="https://vision.in.tum.de/members/cremers">Daniel Cremers</a>, <a href="https://www.visinf.tu-darmstadt.de/visual_inference/people_vi/stefan_roth.en.jsp">Stefan Roth</a>
               <br>
               <em>TMLR 2023</em>
               <br>
@@ -141,7 +157,7 @@
             <heading>Academic Service</heading>
             <p>
               <li style="margin: 5px;"> 
-                <b>Reviewer:</b> TPAMI, CVPR
+                <b>Reviewer:</b> TPAMI, CVPR, ECCV
               </li>
               <li style="margin: 5px;"> 
                 <b>Teaching Assistant:</b> Computer Vision, Image Processing and Computational Photography
