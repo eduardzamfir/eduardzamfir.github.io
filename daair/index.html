@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="description"
+        content="Efficient Degradation-aware Any Image Restoration">
+  <meta name="keywords" content="Mixture-of-Experts, Image Restoration, Efficiency">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Efficient Degradation-aware Any Image Restoration</title>
+
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-PYVRSFMDRL"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+
+    function gtag() {
+      dataLayer.push(arguments);
+    }
+
+    gtag('js', new Date());
+
+    gtag('config', 'G-PYVRSFMDRL');
+  </script>
+
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro"
+        rel="stylesheet">
+
+  <link rel="stylesheet" href="./website/static/css/bulma.min.css">
+  <link rel="stylesheet" href="./website/static/css/bulma-carousel.min.css">
+  <link rel="stylesheet" href="./website/static/css/bulma-slider.min.css">
+  <link rel="stylesheet" href="./website/static/css/fontawesome.all.min.css">
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  <link rel="stylesheet" href="./website/static/css/index.css">
+  <link rel="icon" href="./website/static/images/favicon.svg">
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script defer src="./website/static/js/fontawesome.all.min.js"></script>
+  <script src="./website/static/js/bulma-carousel.min.js"></script>
+  <script src="./website/static/js/bulma-slider.min.js"></script>
+  <script src="./website/static/js/index.js"></script>
+</head>
+<body>
+
+
+<section class="hero">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+      <div class="columns is-centered">
+        <div class="column has-text-centered">
+          <h1 class="title is-2 publication-title">Efficient Degradation-aware Any Image Restoration</h1>
+          <div class="is-size-5 publication-authors">
+            <span class="author-block">
+              <a href="https://eduardzamfir.github.io">Eduard Zamfir<sup>1</sup></a>
+            </span>
+              <span class="author-block">
+                <a href="https://sites.google.com/view/zwwu/accueil">Zongwei Wu<sup>1</sup></a>
+              </span>
+              <span class="author-block">
+                <a href="https://scholar.google.co.in/citations?user=WwdYdlUAAAAJ&hl=en">Nancy Mehta<sup>1</sup></a>
+              </span>
+              <span class="author-block">
+                <a href="https://yulunzhang.com">Danda Dani Paudel<sup>2,3</sup></a>
+              </span>
+              <span class="author-block">
+                <a href="https://yulunzhang.com">Yulun Zhang<sup>4</sup></a>
+              </span>
+            <span class="author-block">
+              <a href="https://www.informatik.uni-wuerzburg.de/computervision/home/">Radu Timofte<sup>1</sup></a>
+            </span>
+          </div>
+
+          <div class="is-size-5 publication-authors">
+            <span class="author-block"><sup>1</sup>University of Würzburg, Germany</span>
+            <span class="author-block"><sup>2</sup>INSAIT Sofia University, Bulgaria</span>
+            <span class="author-block"><sup>3</sup>ETH Zürich, Switzerland</span>
+            <span class="author-block"><sup>4</sup>Shanghai Jiao Tong University, China</span>
+            <br>
+            <small>arXiv</small>
+          </div>
+
+          <div class="column has-text-centered">
+            <div class="publication-links">
+
+              <!-- PDF Link. -->
+              <span class="link-block">
+                <a href="https://arxiv.org/""
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="fas fa-file-pdf"></i>
+                  </span>
+                  <span>arXiv</span>
+                </a>
+              </span>
+
+              <!-- Code Link. -->
+              <span class="link-block">
+                <a href="https://eduardzamfir.github.io"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="fab fa-github"></i>
+                  </span>
+                  <span>Code (Coming Soon)</span>
+                  </a>
+              </span>
+              
+              <!-- Dataset Link. -->
+              <!--<span class="link-block">
+                <a href="https://github.com"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="far fa-images"></i>
+                  </span>
+                  <span>Data</span>
+                  </a>-->
+                </span>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<script defer src="https://unpkg.com/img-comparison-slider@7/dist/index.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/img-comparison-slider@7/dist/styles.css"/>
+
+<style>
+  .slider-example-split-line {
+    --divider-width: 4px;
+    --divider-color: #ffa658;
+    --default-handle-opacity: 0;
+  }
+
+  .before,
+  .after { margin: 0; }
+
+  .before figcaption,
+  .after figcaption {
+    background: #fff;
+    border: 1px solid #c0c0c0;
+    border-radius: 12px;
+    color: #2e3452;
+    opacity: 0.8;
+    padding: 12px;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    line-height: 100%;
+  }
+
+  .before figcaption {left: 12px;}
+  .after figcaption { right: 12px;}
+
+  .image-sliders-container {
+    display: flex;
+    justify-content: center;
+    gap: 20px; /* Adjust the gap between sliders as needed */
+  }
+
+  .image-slider {
+    flex: 1;
+    min-width: 200px; /* Minimum width for each slider */
+  }
+
+  .image-slider img {
+    height: 300px; /* Set a fixed height for the images */
+    width: 100%;
+    object-fit: cover; /* Crop the images to fit the fixed height */
+  }
+</style>
+
+<div class="image-sliders-container">
+  <img-comparison-slider tabindex="0" class="slider-example-split-line image-slider" hover="hover">
+    <figure slot="first" class="after">
+      <img src="./assets/15.png" alt="Ours">
+      <figcaption><strong>Ours</strong></figcaption>
+    </figure>
+    <figure slot="second" class="before">
+      <img src="./assets/rain-015.png" alt="Before">
+      <figcaption><strong>Before</strong></figcaption>
+    </figure>
+  </img-comparison-slider>
+
+  <img-comparison-slider tabindex="0" class="slider-example-split-line image-slider" hover="hover">
+    <figure slot="first" class="after">
+      <img src="./assets/1015_0.8_0.12_30.4.png" alt="Ours">
+      <figcaption><strong>Ours</strong></figcaption>
+    </figure>
+    <figure slot="second" class="before">
+      <img src="./assets/1015_0.8_0.12.jpg" alt="Before">
+      <figcaption><strong>Before</strong></figcaption>
+    </figure>
+  </img-comparison-slider>
+
+  <img-comparison-slider tabindex="0" class="slider-example-split-line image-slider" hover="hover">
+    <figure slot="first" class="after">
+      <img src="./assets/bsd68_12.png" alt="Ours">
+      <figcaption><strong>Ours</strong></figcaption>
+    </figure>
+    <figure slot="second" class="before">
+      <img src="./assets/noisy_bsd68_12.png" alt="Before">
+      <figcaption><strong>Before</strong></figcaption>
+    </figure>
+  </img-comparison-slider>
+</div>
+
+<div class="image-sliders-container">
+  <img-comparison-slider tabindex="0" class="slider-example-split-line image-slider" hover="hover">
+    <figure slot="first" class="after">
+      <img src="./assets/13.png" alt="Ours">
+      <figcaption><strong>Ours</strong></figcaption>
+    </figure>
+    <figure slot="second" class="before">
+      <img src="./assets/rain-013.png" alt="Before">
+      <figcaption><strong>Before</strong></figcaption>
+    </figure>
+  </img-comparison-slider>
+
+  <img-comparison-slider tabindex="0" class="slider-example-split-line image-slider" hover="hover">
+    <figure slot="first" class="after">
+      <img src="./assets/1781_0.8_0.2_30.06.png" alt="Ours">
+      <figcaption><strong>Ours</strong></figcaption>
+    </figure>
+    <figure slot="second" class="before">
+      <img src="./assets/1781_0.8_0.2.jpg" alt="Before">
+      <figcaption><strong>Before</strong></figcaption>
+    </figure>
+  </img-comparison-slider>
+
+  <img-comparison-slider tabindex="0" class="slider-example-split-line image-slider" hover="hover">
+    <figure slot="first" class="after">
+      <img src="./assets/0013_31.91.png" alt="Ours">
+      <figcaption><strong>Ours</strong></figcaption>
+    </figure>
+    <figure slot="second" class="before">
+      <img src="./assets/degraded_0013_31.91.png" alt="Before">
+      <figcaption><strong>Before</strong></figcaption>
+    </figure>
+  </img-comparison-slider>
+</div>
+
+
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <!-- Abstract. -->
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3">Abstract</h2>
+        <div class="content has-text-justified">
+          <p>
+            Reconstructing missing details from degraded low-quality inputs poses a significant challenge. Recent progress in image restoration has demonstrated the efficacy of learning large models capable of addressing various degradations simultaneously. 
+Nonetheless, these approaches introduce considerable computational overhead and complex learning paradigms, limiting their practical utility. 
+In response, we propose DaAIR, an efficient All-in-One image restorer employing a Degradation-aware Learner (DaLe) in the low-rank regime to collaboratively mine shared aspects and subtle nuances across diverse degradations, generating a degradation-aware embedding. By dynamically allocating model capacity to input degradations, we realize an efficient restorer integrating holistic and specific learning within a unified model. 
+Furthermore, DaAIR introduces a cost-efficient parameter update mechanism that enhances degradation awareness while maintaining computational efficiency.
+Extensive comparisons across five image degradations demonstrate that our DaAIR outperforms both state-of-the-art All-in-One models and degradation-specific counterparts, affirming our efficacy and practicality.
+          </p>
+        </div>
+      </div>
+    </div>
+
+  <!-- Image. -->
+  <div class="columns is-centered has-text-centered">
+    <div class="column is-four-fifths">
+      <figure>
+        <img src="./assets/overview.pdf" style="width:100%; height:auto;">
+        <figcaption>Architecture Overview</figcaption>
+      </figure>
+    </div>
+  </div>
+  </div>
+
+
+
+<section class="section" id="Citation">
+  <div class="container is-max-desktop content">
+    <h2 class="title">Citation</h2>
+    <pre><code>@misc{zamfir2024details,
+  title={Degradation-aware Any Image Restoration}, 
+  author={Eduard Zamfir and Zongwei Wu and Nancy Mehta and Danda Dani Paudel and Yulun Zhang and Radu Timofte},
+  booktitle={arXiv},
+  year={2024},
+}
+</code></pre>
+  </div>
+</section>
+
+
+<footer class="footer">
+  <div class="container">
+    <div class="columns is-centered">
+      <div class="column is-8">
+        <div class="content">
+          <p>
+            This website is borrowed <a rel="license" href="https://github.com/nerfies/nerfies.github.io">from</a>.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
