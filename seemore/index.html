@@ -114,6 +114,23 @@
                   <span>Demo 🤗</span>
                 </a>
               </span>
+
+              <!-- Poster Link. -->
+              <span class="link-block">
+                <a href="assets/seemoredetails-min.png" target="_blank"
+                    class="external-link button is-normal is-rounded is-dark" id="poster-link">
+                  <span class="icon">
+                      <i class="fas fa-file-pdf"></i>
+                  </span>
+                  <span>Poster</span>
+                </a>
+              </span>
+
+              <script>
+                document.getElementById('poster-link').addEventListener('click', function(event) {
+                  console.log('Link clicked:', event);
+                });
+              </script>
               <!-- Dataset Link. -->
               <!--<span class="link-block">
                 <a href="https://github.com"
@@ -183,33 +200,33 @@
 <div class="image-sliders-container">
   <img-comparison-slider tabindex="0" class="slider-example-split-line image-slider" hover="hover">
     <figure slot="first" class="after">
-      <img src="./assets/img004x4_SeemoRe_L.png" alt="Ours">
+      <img src="./assets/visuals/img004x4_SeemoRe_L.png" alt="Ours">
       <figcaption><strong>Ours</strong></figcaption>
     </figure>
     <figure slot="second" class="before">
-      <img src="./assets/img004x4.png" alt="Before">
+      <img src="./assets/visuals/img004x4.png" alt="Before">
       <figcaption><strong>Before</strong></figcaption>
     </figure>
   </img-comparison-slider>
 
   <img-comparison-slider tabindex="0" class="slider-example-split-line image-slider" hover="hover">
     <figure slot="first" class="after">
-      <img src="./assets/img053x4_SeemoRe_L.png" alt="Ours">
+      <img src="./assets/visuals/img053x4_SeemoRe_L.png" alt="Ours">
       <figcaption><strong>Ours</strong></figcaption>
     </figure>
     <figure slot="second" class="before">
-      <img src="./assets/img053x4.png" alt="Before">
+      <img src="./assets/visuals/img053x4.png" alt="Before">
       <figcaption><strong>Before</strong></figcaption>
     </figure>
   </img-comparison-slider>
 
   <img-comparison-slider tabindex="0" class="slider-example-split-line image-slider" hover="hover">
     <figure slot="first" class="after">
-      <img src="./assets/img073x4_SeemoRe_L.png" alt="Ours">
+      <img src="./assets/visuals/img073x4_SeemoRe_L.png" alt="Ours">
       <figcaption><strong>Ours</strong></figcaption>
     </figure>
     <figure slot="second" class="before">
-      <img src="./assets/img073x4.png" alt="Before">
+      <img src="./assets/visuals/img073x4.png" alt="Before">
       <figcaption><strong>Before</strong></figcaption>
     </figure>
   </img-comparison-slider>
@@ -230,17 +247,51 @@
         </div>
       </div>
     </div>
+  
 
   <!-- Image. -->
   <div class="columns is-centered has-text-centered">
     <div class="column is-four-fifths">
       <figure>
-        <img src="./arch.svg" style="width:100%; height:auto;">
+        <img src="./arch.pdf" style="width:100%; height:auto;">
         <figcaption>Architecture Overview</figcaption>
       </figure>
     </div>
   </div>
-  </div>
+
+  <!-- Tradeoff. -->
+  <section class="section">
+    <div class="container is-max-desktop">
+      <div class="columns is-centered has-text-centered">
+        <div class="column is-four-fifths">
+          <h2 class="title is-3">Efficiency Tradeoff</h2>
+          <div class="columns is-multiline">
+            <div class="column is-half">
+              <figure>
+                <img src="./assets/plots/x2_manga109.svg" alt="Image 1" style="width:100%; height:auto;">
+              </figure>
+            </div>
+            <div class="column is-half">
+              <figure>
+                <img src="./assets/plots/x4_manga109.svg" alt="Image 2" style="width:100%; height:auto;">
+              </figure>
+            </div>
+            <div class="column is-half">
+              <figure>
+                <img src="./assets/plots/x2_urban100.svg" alt="Image 3" style="width:100%; height:auto;">
+              </figure>
+            </div>
+            <div class="column is-half">
+              <figure>
+                <img src="./assets/plots/x4_urban100.svg" alt="Image 4" style="width:100%; height:auto;">
+              </figure>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
 
   <!-- Results. -->
   <section class="section">
@@ -254,8 +305,8 @@
       </figure>
     </div>
   </div>
-  </div>
-
+</div>
+</section>
 
 
 <section class="section" id="Citation">
@@ -279,7 +330,7 @@
       <div class="column is-8">
         <div class="content">
           <p>
-            This website is borrowed <a rel="license" href="https://github.com/nerfies/nerfies.github.io">from</a>.
+            This website is borrowed from <a rel="license" href="https://github.com/nerfies/nerfies.github.io">Nerfies</a>.
           </p>
         </div>
       </div>
