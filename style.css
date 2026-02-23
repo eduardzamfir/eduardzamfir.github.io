@@ -105,6 +105,18 @@ name {
   font-size: 38px;
 }
 
+.author-list, 
+.author-list a, 
+.author-list strong {
+  font-size: 12px;
+}
+
+.author-list {
+  display: inline-block;
+  line-height: 1.6;      
+  word-spacing: 0.1em;
+}
+
 .one {
   width: 160px;
   height: 160px;
