@@ -69,12 +69,16 @@ span.papertitle {
 
 .bio-name  { grid-area: name; }
 .bio-text  { grid-area: bio; }
-.bio-photo { grid-area: photo; align-self: center; }
+.bio-photo { grid-area: photo; align-self: center; overflow: hidden; border-radius: 6px; }
 .bio-links { grid-area: links; }
 
 .bio-photo img {
   width: 100%;
-  border-radius: 6px;
+  aspect-ratio: 1/1;
+  object-fit: cover;
+  object-position: 25% 22%;
+  border-radius: 0;
+  transform: scale(1.35);
 }
 
 /* Social links */
