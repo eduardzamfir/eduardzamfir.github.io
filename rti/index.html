@@ -1,0 +1,694 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RTI — Elastic Token Compression for Pixel-Space Diffusion Transformers</title>
+<meta name="description" content="A frozen pixel-space diffusion transformer runs its middle blocks on a few hundred content-sized region tokens instead of one token per patch. One checkpoint serves every budget.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Serif:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=34">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%23FBFAF7'/><rect x='2' y='2' width='16' height='16' fill='none' stroke='%234285F4' stroke-width='2'/><rect x='20' y='2' width='10' height='10' fill='none' stroke='%2314161A' stroke-width='2'/><rect x='20' y='14' width='5' height='5' fill='none' stroke='%2314161A' stroke-width='2'/><rect x='2' y='21' width='9' height='9' fill='none' stroke='%2314161A' stroke-width='2'/></svg>">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wrap">
+    <a class="brand" href="https://eduardzamfir.github.io">← Eduard Zamfir</a>
+    <nav>
+      <a href="#samples">Samples</a>
+      <a href="#trajectory">Trajectory</a>
+      <a href="#method">Method</a>
+      <a href="#results">Results</a>
+      <a href="#ablations">Ablations</a>
+      <a href="#limits">Limits</a>
+      <a href="#acknowledgements">Acknowledgements</a>
+      <a href="#references">References</a>
+      <a href="#bibtex">BibTeX</a>
+    </nav>
+    <button class="themebtn" id="themebtn" type="button" aria-label="Toggle colour theme">Theme</button>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>Elastic Token Compression for<br>Pixel-Space Diffusion Transformers</h1>
+
+    <div class="authors">
+      <a href="https://scholar.google.com/citations?user=5-FIWKoAAAAJ" target="_blank" rel="noopener">Eduard Zamfir</a><sup>1</sup> &nbsp;&nbsp;
+      <a href="https://scholar.google.com/citations?user=QDWZ9gEAAAAJ" target="_blank" rel="noopener">Christian Reisswig</a><sup>2</sup> &nbsp;&nbsp;
+      <a href="https://scholar.google.com/citations?user=3QSALjX498QC" target="_blank" rel="noopener">Zongwei Wu</a><sup>1</sup> &nbsp;&nbsp;
+      <a href="https://scholar.google.com/citations?user=JmdnBzcAAAAJ" target="_blank" rel="noopener">Yongqin Xian</a><sup>2</sup> &nbsp;&nbsp;
+      <a href="https://scholar.google.com/citations?user=u3MwH5kAAAAJ" target="_blank" rel="noopener">Radu Timofte</a><sup>1</sup>
+    </div>
+    <div class="affil">
+      <sup>1</sup>Computer Vision Lab, University of Würzburg &nbsp;&nbsp;
+      <sup>2</sup>Google
+    </div>
+
+    <div class="btnrow">
+      <a class="btn" href="#" aria-disabled="true"><span class="ico">▸</span> arXiv — soon</a>
+      <a class="btn" href="#" aria-disabled="true"><span class="ico">▸</span> Code — soon</a>
+    </div>
+
+    <p class="claim">A pretrained diffusion transformer spends one token on every patch, in
+    every layer and at every step. We keep the first and last blocks dense and run the middle
+    on <b>a few hundred content-sized region tokens</b>: large over flat areas, single patches
+    over detail.</p>
+
+    <p class="claim">We cut a Hilbert ordering of the patch tokens where the model's own
+    features change most, so grouping in two dimensions becomes cutting a line in one. A learned Read pools each run into one token carrying its size and position, and a
+    learned Write returns the core's update to its patch tokens. The backbone stays frozen apart
+    from low-rank adapters, and the region count is drawn at random while fine-tuning, so
+    <b>one checkpoint runs at every budget</b>, 1024 tokens down to 64. On half the tokens,
+    RTI holds the frozen model's quality at <b>2.11× the speed</b>.</p>
+
+    <figure class="framed" style="margin-top:38px">
+      <img src="assets/fig/teaser.webp" alt="Three samples with the uniform patch grid overlaid on top and our region partition below; arrows report how many region tokens cover the area where the grid spends about a hundred patches." loading="lazy">
+      <figcaption><b>Content-adaptive tokenization.</b> The same three images under a uniform
+      grid (top) and our partition (bottom). Each arrow reports how many region tokens cover
+      the area where the grid spends about a hundred patch tokens: <b>4</b> over a plain backdrop
+      and <b>3</b> over empty sky, but <b>23</b> over the balloon, where the detail is. Size
+      follows content in both directions. The overlays compare <i>tokenizations</i>, not
+      outputs.</figcaption>
+    </figure>
+  </div>
+</header>
+
+<!-- ═══ 01 · SAMPLES ═══════════════════════════════════════════════════════ -->
+<section id="samples">
+  <div class="wrap">
+    <div class="sechead">
+      <span class="num">01</span><h2>Samples</h2>
+      <span class="sub">MiniT2I<a class="cite" href="#r1">[1]</a>-L/16 · 512² · 100 steps · cfg 5.0 · one seed</span>
+    </div>
+    <p class="lede">Select a prompt and use the slider to set the compression rate. The
+    middle column is one RTI checkpoint queried at five budgets. The right column is feature-similarity merging, the
+    strongest prior reduction, at the same budgets and the same speed. The
+    left column never changes: it is the frozen backbone at all 1024 patch tokens.</p>
+
+    <div class="explorer" style="margin-top:22px">
+      <div class="promptlist">
+        <div class="hd">Prompt</div>
+        <div class="thumbs" id="thumbs"></div>
+        <div class="selected">
+          <div class="hd">Showing</div>
+          <div class="selname" id="sel-name"></div>
+          <p class="seltext" id="promptline"></p>
+        </div>
+      </div>
+
+      <div class="viewer">
+        <div class="slider-row">
+          <label for="budget">Sequence length in the core</label>
+          <input type="range" id="budget" min="0" max="4" step="1" value="2" list="stops">
+          <datalist id="stops"><option value="0"><option value="1"><option value="2"><option value="3"><option value="4"></datalist>
+          <span class="readout" id="readout"></span>
+        </div>
+        <div class="panes">
+          <div class="pane">
+            <div class="cap"><span class="who">Dense</span><span class="r">1024 / 1024 · 1.00×</span></div>
+            <div class="imgwrap"><img id="im-dense" alt="Sample from the frozen dense backbone" loading="lazy"><div class="cropbox"></div></div>
+          </div>
+          <div class="pane ours">
+            <div class="cap"><span class="who">RTI (ours)</span><span class="r" id="cap-ours"></span></div>
+            <div class="imgwrap"><img id="im-ours" alt="Sample from RTI at the selected budget" loading="lazy"><div class="cropbox"></div></div>
+          </div>
+          <div class="pane base">
+            <div class="cap"><span class="who">Feat Sim</span><span class="r" id="cap-base"></span></div>
+            <div class="imgwrap"><img id="im-base" alt="Sample from feature-similarity merging at the selected budget" loading="lazy"><div class="cropbox"></div></div>
+          </div>
+        </div>
+
+        <div class="panes crops">
+          <div class="pane"><div class="cap"><span class="who">crop</span><span class="r">dense</span></div><div class="crop" id="cr-dense"></div></div>
+          <div class="pane ours"><div class="cap"><span class="who">crop</span><span class="r" id="crcap-ours"></span></div><div class="crop" id="cr-ours"></div></div>
+          <div class="pane base"><div class="cap"><span class="who">crop</span><span class="r" id="crcap-base"></span></div><div class="crop" id="cr-base"></div></div>
+        </div>
+
+        <div class="magnote">
+          <span class="note" style="margin:0;border:0;padding:0">Click any sample to move the crop · <button class="tab" type="button" id="zoombtn">3×</button></span>
+        </div>
+        <p class="note">The dense backbone runs on all 1024 patch tokens; every other
+        setting is that sequence cut to the length shown. Dropping a quarter of it, 768 of
+        1024, leaves the image essentially unchanged. Both reductions run inside the same
+        interface, so the only difference between the two right-hand columns is the rule that
+        forms the groups. Measured speedups are in the results section below.</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══ 02 · TRAJECTORY ════════════════════════════════════════════════════ -->
+<section id="trajectory">
+  <div class="wrap">
+    <div class="sechead">
+      <span class="num">02</span><h2>The partition on the trajectory</h2>
+      <span class="sub">Every video: 100 sampling steps</span>
+    </div>
+    <p class="lede">The partition is not fixed: we rebuild it from the model's own features
+    at every step, so it tracks the image as the image appears. Early on there is nothing to
+    track and the regions are large everywhere; as detail forms, the cuts crowd into it and
+    the flat parts of the frame stay in a handful of tokens.</p>
+
+    <div style="margin-top:22px">
+      <div class="tabrow">
+        <span class="tabkey">Prompt</span><div class="tabs" id="traj-tabs"></div>
+        <span class="tabkey">Budget</span><div class="tabs" id="traj-budget"></div>
+      </div>
+      <div class="videoframe">
+        <video id="traj-video" muted loop playsinline preload="none"></video>
+        <div class="vlabels two"><span>Current image estimate</span><span>The same estimate, region boundaries drawn</span></div>
+      </div>
+      <p class="note">Left: the model's running estimate of the clean image. Right: the same
+      frame with the boundaries of the regions the core is running on. Same sampler, seed and
+      prompt as the gallery above.</p>
+    </div>
+
+    <div style="margin-top:44px">
+      <div class="sechead" style="border-bottom-style:dotted">
+        <span class="num">02b</span><h2>Contiguous, or scattered</h2>
+        <span class="sub">Same prompt · same seed · R = 512</span>
+      </div>
+      <p class="lede">Both methods turn the 1024 patch tokens into 512 tokens, two patches
+      each on average; they differ in which patches each token is built from. We mark six grid
+      positions — the same six on both sides — and paint the whole group that each one belongs
+      to.</p>
+      <p class="lede">Ours are connected: a group covers one place, wide where the image is
+      flat and down to a single patch where it is not. Similarity merging chooses members by
+      appearance alone, so one group collects patches from opposite corners of the frame. Its
+      token stands nowhere in particular, and the pretrained rotary attention is left with no
+      position to read for it.</p>
+      <div class="tabrow" style="margin-top:16px">
+        <span class="tabkey">Prompt</span><div class="tabs" id="vs-tabs"></div>
+      </div>
+      <div class="videoframe">
+        <video id="vs-video" muted loop playsinline preload="none"></video>
+        <div class="vlabels two"><span>Columns: the sample, then its six marked groups</span><span>Rows: RTI (ours) on top, Feat Sim below</span></div>
+      </div>
+      <p class="note">Measured over 64 prompts at R = 256: a patch sits <b>0.5</b> grid cells
+      from its group's centre under our partition, <b>5.2</b> under similarity merging,
+      against 12.2 for a random assignment.</p>
+    </div>
+
+    <div style="margin-top:44px">
+      <div class="sechead" style="border-bottom-style:dotted">
+        <span class="num">02c</span><h2>One checkpoint, every budget</h2>
+        <span class="sub">Partition swept at a fixed step</span>
+      </div>
+      <p class="lede">We cut the Hilbert order at the largest feature gaps, so the cut sets
+      are nested: lowering <i>R</i> only ever merges neighbouring
+      regions, and one trained checkpoint serves every setting.</p>
+      <div class="duo" style="margin-top:16px">
+        <div class="videoframe"><video data-src="assets/anim/morph_p00.mp4" poster="assets/anim/morph_p00.jpg" muted loop playsinline preload="none"></video></div>
+        <div class="videoframe"><video data-src="assets/anim/morph_p13.mp4" poster="assets/anim/morph_p13.jpg" muted loop playsinline preload="none"></video></div>
+      </div>
+      <p class="note">We hold the image fixed and sweep the budget from R = 1024 down to
+      R = 32 and back. Carved stone and feather barbs hold their cuts longest; flat
+      ground and blank wall merge first.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 03 · METHOD ════════════════════════════════════════════════════════ -->
+<section id="method">
+  <div class="wrap wide">
+    <div class="sechead">
+      <span class="num">03</span><h2>Method</h2>
+      <span class="sub">Region Token Interface</span>
+    </div>
+    <div id="analysis"></div>
+    <p class="lede">We probe the frozen MiniT2I<a class="cite" href="#r1">[1]</a>-B/16
+    before any training. Three measurements
+    each fix one design choice. Detail is concentrated in space, so regions must be sized by
+    content (a). The representation grows more poolable as the image forms, so the partition
+    is rebuilt at every step (b). The redundancy sits in the middle blocks, so only those are
+    compressed (c).</p>
+
+    <div class="chartgrid" style="margin-top:24px">
+      <div class="chart"><h3>a · Space</h3><p class="hint">Detail is concentrated</p><div id="ch-space"></div>
+        <p class="hint" style="margin-top:6px">The most-detailed 15% of patches hold half of the detail; half of them hold 88%.</p></div>
+      <div class="chart"><h3>b · Time</h3><p class="hint">More poolable as the image forms</p><div id="ch-time"></div>
+        <div class="legend" id="lg-time"></div></div>
+      <div class="chart"><h3>c · Depth</h3><p class="hint">Poolable in the core, sensitive at the ends</p><div id="ch-depth"></div>
+        <div class="legend" id="lg-depth"></div></div>
+    </div>
+    <p class="note">Representation retained = explained variance of a middle block's tokens
+    after pooling the <i>N</i>=1024 patch tokens to <i>R</i>=256 and scattering back. Adaptive is our
+    partition, uniform is the equal-length cut of the same order, skip drops tokens instead
+    of pooling them. Panel (c) is why the first three and last four blocks stay dense.</p>
+
+
+    <div class="sechead" style="margin-top:44px;border-bottom-style:dotted">
+      <span class="num">03b</span><h2>Four properties of the grouping</h2>
+      <span class="sub">And what each prior reduction gives up</span>
+    </div>
+    <p class="lede">We measure the effect of coarsening the token
+    grid on the frozen model to investigate the redundancy, and the measurements fix four
+    properties a reduction must keep. Redundant patches lie next to one another in flat
+    stretches of the frame, so groups must be <b>contiguous</b>. In natural images detail
+    concentrates in a small part of the frame, so group size must follow the <b>content</b>,
+    large over a flat wall and small over foliage. A group covers a definite place that its
+    token has to stand for, so each must carry a <b>position</b>. And dropping loses what
+    pooling keeps, so the redundant content must be <b>summarized</b> rather than deleted.</p>
+    <p class="lede">Each prior reduction forfeits at least one of the four, and each is worst
+    precisely where it does. <b>Token Skip</b><a class="cite" href="#r3">[3]</a> routes the most important patch tokens through a
+    block and lets the rest bypass it: its units are single patch tokens, connected and positioned
+    by construction, but what bypasses is deleted, not summarized. <b>Feature-similarity
+    merging</b><a class="cite" href="#r4">[4]</a><a class="cite" href="#r5">[5]</a> pools patches that look alike regardless of where they are, so a group can
+    gather patches from opposite corners of the frame; its token stands nowhere in particular,
+    losing contiguity and position at once. A <b>latent array</b><a class="cite" href="#r6">[6]</a><a class="cite" href="#r7">[7]</a> replaces grouping with
+    <i>R</i> free latents that read the whole frame by cross-attention, giving up grouping and
+    position together.</p>
+
+    <div class="tablewrap" style="margin-top:18px">
+      <table>
+        <caption>GenEval on MiniT2I-B/16 at matched budget, with the difference to RTI.
+        (✓) holds only trivially: Token Skip never groups, so each unit is a single patch
+        token, connected and positioned by itself, while the admitted set scatters across
+        the frame and nothing stands for the patches that bypass. It is also scored at its own
+        operating point, 576 mean tokens at 1.19×, against RTI at 256 and 2.15×, so its
+        difference understates the gap.</caption>
+        <thead><tr><th>Method</th><th>How it groups</th><th>Contiguous</th><th>Content-sized</th><th>Carries position</th><th>Summarizes</th><th>GenEval ↑</th><th>Δ</th></tr></thead>
+        <tbody>
+          <tr class="ours"><td>RTI (ours)</td><td class="rule">contiguous runs of the Hilbert order</td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td class="best">84.7</td><td>—</td></tr>
+          <tr><td>Token Skip<a class="cite" href="#r3">[3]</a></td><td class="rule">top 12.5% of patch tokens enter the block, the rest bypass</td><td><span class="triv">(✓)</span></td><td><span class="no">✗</span></td><td><span class="triv">(✓)</span></td><td><span class="no">✗</span></td><td>82.3</td><td>−2.4</td></tr>
+          <tr><td>Feat Sim<a class="cite" href="#r4">[4]</a></td><td class="rule">nearest of <i>R</i> anchors by feature similarity</td><td><span class="no">✗</span></td><td><span class="no">✗</span></td><td><span class="no">✗</span></td><td><span class="yes">✓</span></td><td>80.5</td><td>−4.2</td></tr>
+          <tr><td>Latent Array<a class="cite" href="#r6">[6]</a><a class="cite" href="#r7">[7]</a></td><td class="rule"><i>R</i> learned latents read every patch token by cross-attention</td><td><span class="no">✗</span></td><td><span class="no">✗</span></td><td><span class="no">✗</span></td><td><span class="yes">✓</span></td><td>45.7</td><td>−39.0</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">Removing position costs an order of magnitude more than anything
+    else.</p>
+
+    <div class="sechead" style="margin-top:44px;border-bottom-style:dotted">
+      <span class="num">03c</span><h2>The interface</h2>
+      <span class="sub">Cut, Read, core, Write</span>
+    </div>
+    <figure class="framed">
+      <img src="assets/fig/method.svg" alt="RTI architecture: prelude blocks at full resolution, region partition and Read, the DiT core on R region tokens, Write, coda blocks at full resolution." loading="lazy">
+      <figcaption><b>An elastic region-token interface.</b> The first and last blocks keep
+      all <i>N</i> patch tokens. The core between them runs on <i>R</i> ≪ <i>N</i> region
+      tokens. <i>Left inset:</i> cuts at the <i>R</i>−1 largest feature gaps along the
+      Hilbert order give the regions; Read pools each into one token carrying its size and
+      position. <i>Right inset:</i> Write returns each region token's change to its patch
+      tokens, specialised per token by a learned map <i>g</i>. Grey: LoRA. Green: the interface.</figcaption>
+    </figure>
+
+    <div class="methodflow">
+
+      <section class="mblock">
+        <h3>From an order to regions</h3>
+        <p>MiniT2I<a class="cite" href="#r1">[1]</a> takes a 512² image as a 32×32 grid of
+        <i>N</i> = 1024 patch tokens and
+        follows the <a href="https://arxiv.org/abs/2511.13720" target="_blank"
+        rel="noopener">JiT</a><a class="cite" href="#r2">[2]</a> convention of predicting the clean image instead of the noise
+        or the velocity, so its features track image structure. A Hilbert curve<a class="cite" href="#r9">[9]</a> visits every
+        patch of that grid exactly once, and consecutive positions along it are always
+        neighbours in the image. Any contiguous run of the order is therefore a connected
+        region, and grouping in two dimensions becomes cutting a line in one.</p>
+        <p>Each boundary along the curve is scored by the feature difference across it:</p>
+        <p class="eq">d<sub>j</sub> = ‖ h<sub>π(j+1)</sub> − h<sub>π(j)</sub> ‖<sub>2</sub></p>
+        <p>This is a first difference along the curve, an edge detector at patch resolution on
+        mid-trunk features rather than on pixels. We cut at the <i>R</i>−1 largest scores:
+        homogeneous stretches stay merged, detailed areas split down to single patches.
+        The rule has no parameters and costs one pass over the sequence, cheap enough to
+        recompute at every sampling step, so the partition follows the image as it forms.</p>
+      </section>
+
+      <section class="mblock">
+        <h3>Read: patch tokens into a region token</h3>
+        <p>A region token is a learned weighted average of the region's patch tokens, plus
+        an embedding of the region's size:</p>
+        <p class="eq">α<sub>j</sub> = softmax<sub>j∈c</sub>( w<sup>⊤</sup>h<sub>j</sub> )<br>
+        z<sub>c</sub> = Σ<sub>j∈c</sub> α<sub>j</sub> h<sub>j</sub> + e<sub>size</sub>(⌊log₂|c|⌋)</p>
+        <p>The softmax runs within the region, so Read can put its weight on a region's
+        informative tokens instead of averaging blindly, and the size embedding tells the core
+        whether a token stands for one patch or sixteen. The token's position is the average of
+        its member tokens' rotary embeddings. Those are unit phasors, so the average survives at
+        wavelengths longer than the region and shrinks below it: position is sharp for one
+        patch and coarse for a large region, which is what a token covering an area needs.</p>
+      </section>
+
+      <section class="mblock">
+        <h3>Write: the update back to the patch tokens</h3>
+        <p>After the core, a region's token has changed by z′<sub>c</sub> − z<sub>c</sub>.
+        Write adds that change to each patch token as a residual on its pre-core features,
+        with a small learned map <i>g</i> conditioning the update on the token itself:</p>
+        <p class="eq">h<sub>j</sub> ← h<sub>j</sub> + g( [ h<sub>j</sub> ‖ z′<sub>c(j)</sub> − z<sub>c(j)</sub> ] )</p>
+        <p>Tokens in one region therefore receive individual updates rather than one shared
+        copy. And because every patch token keeps its pre-core features, the core's work
+        arrives as a correction on top of them, which is how the coda still produces per-pixel
+        output although the core never saw individual patch tokens.</p>
+      </section>
+
+      <section class="mblock">
+        <h3>Core span and fine-tuning</h3>
+        <p>The core is the contiguous span of middle blocks where the depth probe puts the
+        redundancy, 3–13 of 17 on B/16 and 3–19 of 23 on L/16; the prelude and coda stay at
+        full resolution. Its extent trades against its width: a longer core must run on more
+        region tokens to hold the same quality, a shorter one needs fewer, and at
+        matched compute the two are equivalent. The probe fixes where the span sits, not a
+        unique length.</p>
+        <p>The trunk stays frozen. We train only LoRA<a class="cite" href="#r10">[10]</a>
+        adapters and the Read/Write parameters, on MiniT2I's own fine-tuning data and
+        settings. Both are initialised to exact mean-pool and broadcast, so training starts
+        from the frozen model's own behaviour. We draw the budget <i>R</i> at each step from
+        {64, 128, 256, 512}, so one checkpoint covers the range.</p>
+      </section>
+
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══ 04 · RESULTS ═══════════════════════════════════════════════════════ -->
+<section id="results">
+  <div class="wrap wide">
+    <div class="sechead">
+      <span class="num">04</span><h2>Results</h2>
+      <span class="sub">Text-to-image · MiniT2I<a class="cite" href="#r1">[1]</a>-B/16 and L/16</span>
+    </div>
+
+    <div class="duo" style="align-items:start">
+      <div class="chart">
+        <h3>Quality against speed</h3>
+        <p class="hint">MiniT2I-L/16 · dashed rule is the frozen dense backbone</p>
+        <div class="tabs" id="fr-tabs" style="margin:8px 0 4px"></div>
+        <div id="ch-frontier"></div>
+        <div class="legend" id="lg-frontier"></div>
+        <details class="data"><summary>Data</summary><div id="tb-frontier"></div></details>
+      </div>
+      <div class="chart">
+        <h3>MJHQ-30K FID</h3>
+        <p class="hint">L/16 · 30 000 prompts · cfg 5.0 · clean-fid · lower is better</p>
+        <div id="ch-fid"></div>
+        <div class="legend" id="lg-fid"></div>
+        <p class="hint" style="margin-top:8px">RTI at R=256 (14.71) beats Feat Sim at
+        R=512 (19.99): better images at half the tokens and a higher speedup.</p>
+      </div>
+    </div>
+
+    <div class="tablewrap" style="margin-top:30px">
+      <table>
+        <caption>Text-to-image benchmarks. GenEval<a class="cite" href="#r12">[12]</a> measures compositional accuracy; CLIP<a class="cite" href="#r14">[14]</a>,
+        PickScore<a class="cite" href="#r15">[15]</a> and ImageReward<a class="cite" href="#r16">[16]</a> measure alignment and preference, over PartiPrompts<a class="cite" href="#r13">[13]</a>. Speedups are wall-clock
+        on one RTX 4090. Token Skip sets a capacity rather than a budget, so 576 is its
+        derived mean image-token count per core block.</caption>
+        <thead><tr><th>Method</th><th><i>R</i></th><th>GenEval ↑</th><th>CLIP ↑</th><th>Pick ↑</th><th>ImageReward ↑</th><th>Speedup</th></tr></thead>
+        <tbody>
+          <tr class="group"><td colspan="7">MiniT2I-B/16</td></tr>
+          <tr class="dense"><td>Dense backbone</td><td>1024</td><td>87.2</td><td>28.23</td><td>22.45</td><td>1.18</td><td>1.00×</td></tr>
+          <tr><td>Token Skip<a class="cite" href="#r3">[3]</a></td><td>576*</td><td>82.3</td><td>28.08</td><td>21.93</td><td>1.06</td><td>1.19×</td></tr>
+          <tr><td>Feat Sim</td><td>512</td><td>84.7</td><td>28.04</td><td>22.04</td><td>1.07</td><td>1.84×</td></tr>
+          <tr class="ours"><td>RTI (ours)</td><td>512</td><td class="best">87.8</td><td>28.09</td><td>22.30</td><td>1.11</td><td>1.84×</td></tr>
+          <tr><td>Feat Sim</td><td>256</td><td>80.5</td><td>27.73</td><td>21.57</td><td>0.93</td><td>2.15×</td></tr>
+          <tr><td>Latent Array<a class="cite" href="#r6">[6]</a><a class="cite" href="#r7">[7]</a></td><td>256</td><td>45.7</td><td>23.30</td><td>19.78</td><td>−0.65</td><td>2.15×</td></tr>
+          <tr class="ours"><td>RTI (ours)</td><td>256</td><td class="best">84.7</td><td>28.04</td><td>22.06</td><td>1.06</td><td>2.15×</td></tr>
+          <tr class="group"><td colspan="7">MiniT2I-L/16</td></tr>
+          <tr class="dense"><td>Dense backbone</td><td>1024</td><td>88.1</td><td>28.50</td><td>22.75</td><td>1.23</td><td>1.00×</td></tr>
+          <tr><td>Feat Sim</td><td>512</td><td>83.1</td><td class="best">28.80</td><td>22.34</td><td>1.16</td><td>2.11×</td></tr>
+          <tr class="ours"><td>RTI (ours)</td><td>512</td><td class="best">87.5</td><td>28.58</td><td>22.63</td><td>1.20</td><td>2.11×</td></tr>
+          <tr><td>Feat Sim</td><td>256</td><td>76.5</td><td>28.31</td><td>21.76</td><td>1.01</td><td>2.59×</td></tr>
+          <tr class="ours"><td>RTI (ours)</td><td>256</td><td class="best">86.3</td><td>28.52</td><td>22.37</td><td>1.17</td><td>2.59×</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">At B/16 and <i>R</i>=512, RTI scores above its own dense backbone on
+    GenEval (87.8 vs 87.2) while running 1.84× faster. CLIPScore is the one metric where Feat
+    Sim leads at <i>R</i>=512; it is also the least discriminative of the four, and RTI leads
+    on GenEval, PickScore and ImageReward.</p>
+
+    <div class="tablewrap" style="margin-top:26px">
+      <table>
+        <caption>MJHQ-30K FID on MiniT2I-L/16. FID is the one metric where RTI does not hold
+        dense quality: it recovers most of the reduction's cost. The gap to similarity
+        merging is also widest here.</caption>
+        <thead><tr><th>Method</th><th><i>R</i></th><th>FID ↓</th><th>vs. dense</th><th>Speedup</th></tr></thead>
+        <tbody>
+          <tr class="dense"><td>Dense backbone</td><td>1024</td><td>9.07</td><td>—</td><td>1.00×</td></tr>
+          <tr class="ours"><td>RTI (ours)</td><td>512</td><td class="best">11.43</td><td>+2.36</td><td>2.11×</td></tr>
+          <tr><td>Feat Sim</td><td>512</td><td>19.99</td><td>+10.92</td><td>2.11×</td></tr>
+          <tr class="ours"><td>RTI (ours)</td><td>256</td><td class="best">14.71</td><td>+5.64</td><td>2.59×</td></tr>
+          <tr><td>Feat Sim</td><td>256</td><td>28.02</td><td>+18.95</td><td>2.59×</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 05 · ABLATIONS ═════════════════════════════════════════════════════ -->
+<section id="ablations">
+  <div class="wrap wide">
+    <div class="sechead">
+      <span class="num">05</span><h2>Ablations</h2>
+      <span class="sub">The order · the step trade-off · a second task</span>
+    </div>
+
+    <div class="abgrid">
+      <div>
+        <h3 style="font-family:var(--mono);font-size:13px;letter-spacing:.1em;text-transform:uppercase">The choice of order</h3>
+        <p class="small">Contiguity is a property of the order, so we swapped it and
+        retrained. Raster order cuts row strips that wrap at row ends; Morton keeps dyadic
+        cells together but jumps diagonally; only Hilbert steps to a neighbour every time. At
+        <i>R</i>=128 the ranking is the one locality predicts, raster worst and Hilbert best,
+        and it widens at <i>R</i>=64. At <i>R</i>=256 all three sit inside noise, because with
+        that many regions even a bad order cuts short runs.</p>
+        <div class="chart" style="margin-top:10px"><div id="ch-order"></div><div class="legend" id="lg-order"></div></div>
+      </div>
+      <div>
+        <h3 style="font-family:var(--mono);font-size:13px;letter-spacing:.1em;text-transform:uppercase">Budget against steps</h3>
+        <p class="small">A region budget and fewer sampling steps both buy speed, and they do
+        not compose. Below about 5 seconds an image the budget is the better purchase: at
+        1.8 s, 82.7 GenEval against 65.9 for the dense model run with fewer steps. Above it
+        the ordering reverses. The results table reports the quality-matched point, not the
+        compute-optimal one.</p>
+        <div class="chart" style="margin-top:10px"><div id="ch-steps"></div><div class="legend" id="lg-steps"></div></div>
+      </div>
+      <div>
+        <h3 style="font-family:var(--mono);font-size:13px;letter-spacing:.1em;text-transform:uppercase">Class-conditional transfer</h3>
+        <p class="small">We apply the same interface to a frozen pixel-space
+        JiT<a class="cite" href="#r2">[2]</a>-L/16 on ImageNet-256, with no text stream and the partition read from its features unchanged.
+        RTI leads feature-similarity merging at every budget on both FID and Inception Score.
+        The gap is largest at the middle budget and narrows at both ends: at <i>R</i>=193
+        little is reduced, at <i>R</i>=64 both methods degrade.</p>
+        <div class="tablewrap" style="margin-top:10px">
+          <table>
+            <caption>ImageNet-256, 50K samples, cfg 3.0, 50 steps. Inception Score follows
+            the same ordering, 313.5 / 303.8 / 253.0 against 291.6 / 252.8 / 229.2.
+            torch-fidelity protocol, not comparable to the MJHQ numbers above.</caption>
+            <thead><tr><th><i>R</i></th><th>RTI FID ↓</th><th>Feat Sim</th><th>Δ</th></tr></thead>
+            <tbody>
+              <tr><td>193</td><td class="best">2.42</td><td>2.73</td><td>−0.30</td></tr>
+              <tr><td>130</td><td class="best">2.69</td><td>4.53</td><td>−1.83</td></tr>
+              <tr><td>64</td><td class="best">4.71</td><td>6.28</td><td>−1.57</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 06 · LIMITS ════════════════════════════════════════════════════════ -->
+<section id="limits">
+  <div class="wrap">
+    <div class="sechead">
+      <span class="num">06</span><h2>Where it breaks</h2>
+      <span class="sub">R = 128 and R = 64 · L/16</span>
+    </div>
+    <p class="lede">Below <i>R</i>=256 the budget costs quality: on L/16, GenEval falls from
+    86.3 at <i>R</i>=256 to 80.3 at 128 and 69.1 at 64. The layout survives; lettering goes
+    first, then fine geometry. Feature-similarity merging degrades further at both
+    settings.</p>
+    <p class="lede">Speed stops improving over the same range. Only the image tokens inside
+    the core shrink, while the dense prelude, the coda and the full-length text stream run
+    unchanged, so the speedup saturates near 3× and halving the budget from 128 to 64 buys
+    only 0.15×. Applying the same interface to the text stream is future work.</p>
+
+    <div class="tabrow" style="margin-top:18px">
+      <span class="tabkey">Budget</span><div class="tabs" id="fail-budget-tabs"></div>
+      <span class="tabkey">Prompt</span><div class="tabs" id="fail-prompt-tabs"></div>
+    </div>
+    <div class="panes" id="fail-panes">
+      <div class="pane">
+        <div class="cap"><span class="who">Dense backbone</span><span class="r">N = 1024</span></div>
+        <img id="f-dense" alt="Dense sample" loading="lazy">
+      </div>
+      <div class="pane ours">
+        <div class="cap"><span class="who">RTI (ours)</span><span class="r" id="f-cap-ours"></span></div>
+        <img id="f-ours" alt="RTI at a low budget" loading="lazy">
+      </div>
+      <div class="pane base">
+        <div class="cap"><span class="who">Feat Sim</span><span class="r" id="f-cap-base"></span></div>
+        <img id="f-base" alt="Feature-similarity merging at a low budget" loading="lazy">
+      </div>
+    </div>
+    <p class="note" id="fail-note"></p>
+
+    <div class="sechead" style="margin-top:44px;border-bottom-style:dotted">
+      <span class="num">06b</span><h2>Style and identity preservation</h2>
+      <span class="sub">One RTI checkpoint · same prompt · same seed</span>
+    </div>
+    <p class="lede">A shorter sequence does not blur the dense image, it re-runs the whole
+    trajectory. The sampler can therefore land on a different sample rather than a coarser one,
+    and identity, count and style can all move with the budget. What decides whether they do is
+    the prompt.</p>
+
+    <div class="strip" id="drift-strip"></div>
+    <p class="note">Top row: the prompt names a robot and a lab but not a style. The model
+    renders a photoreal robot at 1024 tokens, a flat cartoon at 728, and a photoreal robot
+    again at 512 and below. The style is not a monotone function of the budget; it is a mode
+    the sampler picks, and one budget in the range picks a different one. Middle and bottom: the same subject and seed with the style stated in the
+    prompt, once as a photograph and once as a vector cartoon. Both hold their style at every
+    budget down to 64. Detail still degrades — the lettering breaks first, as everywhere else
+    — but the register does not move.</p>
+
+    <p class="note">The same effect is milder elsewhere: the crowd in the Tokyo scene goes
+    from three figures to five to two, and the cathedral's rose window fades at 256 while its
+    floor pattern survives. Subjects with one strong reading, like the marble statue, keep
+    their identity down to 128. Naming the style is the cheapest way to pin it.</p>
+
+
+  </div>
+</section>
+
+<!-- ═══ ACKNOWLEDGEMENTS ═══════════════════════════════════════════════════ -->
+<section id="acknowledgements">
+  <div class="wrap">
+    <div class="sechead"><span class="num">✳</span><h2>Acknowledgements</h2></div>
+
+    <p class="lede">We thank the authors of
+    <a href="https://peppaking8.github.io/#/post/minit2i" target="_blank" rel="noopener">MiniT2I</a><a class="cite" href="#r1">[1]</a>
+    and <a href="https://github.com/LTH14/JiT" target="_blank" rel="noopener">JiT</a><a class="cite" href="#r2">[2]</a>
+    for open-sourcing their code and pretrained checkpoints. Every result here starts from
+    those models; we train only LoRA adapters and the Read/Write interface on top of them.</p>
+
+    <p class="lede">MiniT2I is pretrained on the recaptioned
+    <a href="https://huggingface.co/datasets/CaptionEmporium/conceptual-captions-cc12m-llavanext" target="_blank" rel="noopener">Conceptual Captions 12M</a><a class="cite" href="#r17">[17]</a>
+    and fine-tuned on a 120K-image mix of
+    <a href="https://huggingface.co/datasets/BLIP3o/BLIP3o-60k" target="_blank" rel="noopener">BLIP3o-60k</a><a class="cite" href="#r18">[18]</a>,
+    <a href="https://huggingface.co/datasets/OpenDatasets/dalle-3-dataset" target="_blank" rel="noopener">OpenDatasets/dalle-3-dataset</a>, and
+    <a href="https://huggingface.co/datasets/FreedomIntelligence/ShareGPT-4o-Image" target="_blank" rel="noopener">ShareGPT-4o-Image</a><a class="cite" href="#r19">[19]</a>;
+    our text-to-image runs use that same fine-tuning mix. The class-conditional runs use
+    <a href="https://www.image-net.org" target="_blank" rel="noopener">ImageNet-1K</a><a class="cite" href="#r20">[20]</a>.</p>
+
+    <p class="lede">The MiniT2I and JiT code releases are MIT-licensed, and so are our code
+    and checkpoints. The datasets keep their own terms: BLIP3o-60k and ShareGPT-4o-Image are
+    Apache-2.0 and the DALL·E 3 set is CC0-1.0, while the CC12M recaption release is
+    <b>CC BY-SA 4.0</b> and ImageNet is released under its own non-commercial research terms.
+    Those last two are the ones to read before any commercial use.</p>
+
+    <p class="note" style="margin-top:26px">Every prompt behind a figure in the paper or a
+    visual on this page — 85 of them, grouped by figure, with the file each is read from — is
+    listed in <a href="PROMPTS.md">PROMPTS.md</a>.</p>
+  </div>
+</section>
+
+<!-- ═══ REFERENCES ═════════════════════════════════════════════════════════ -->
+<section id="references">
+  <div class="wrap">
+    <div class="sechead"><span class="num">✳</span><h2>References</h2></div>
+    <ol class="reflist">
+      <li id="r1">X. Wang, H. Zhao, Y. Lu, K. Zhou, L. Ma, K. He.
+        <i>MiniT2I: A Minimalist Baseline for Text-to-Image Generation.</i> 2026.
+        <a href="https://peppaking8.github.io/#/post/minit2i" target="_blank" rel="noopener">blog</a></li>
+      <li id="r2">T. Li, K. He. <i>Back to Basics: Let Denoising Generative Models Denoise.</i>
+        2026. <a href="https://arxiv.org/abs/2511.13720" target="_blank" rel="noopener">arXiv:2511.13720</a></li>
+      <li id="r3">D. Raposo, S. Ritter, B. Richards, T. Lillicrap, P. C. Humphreys, A. Santoro.
+        <i>Mixture-of-Depths: Dynamically Allocating Compute in Transformer-based Language
+        Models.</i> 2024.
+        <a href="https://arxiv.org/abs/2404.02258" target="_blank" rel="noopener">arXiv:2404.02258</a>
+        &nbsp;— <span class="rtag">Token Skip</span></li>
+      <li id="r4">D. Bolya, C.-Y. Fu, X. Dai, P. Zhang, C. Feichtenhofer, J. Hoffman.
+        <i>Token Merging: Your ViT But Faster.</i> ICLR 2023.
+        <a href="https://arxiv.org/abs/2210.09461" target="_blank" rel="noopener">arXiv:2210.09461</a>
+        &nbsp;— <span class="rtag">Feat Sim</span></li>
+      <li id="r5">D. Bolya, J. Hoffman. <i>Token Merging for Fast Stable Diffusion.</i>
+        CVPR Workshops 2023. &nbsp;— <span class="rtag">Feat Sim, diffusion</span></li>
+      <li id="r6">A. Jaegle, S. Borgeaud, J.-B. Alayrac, C. Doersch, C. Ionescu, D. Ding et al.
+        <i>Perceiver IO: A General Architecture for Structured Inputs &amp; Outputs.</i>
+        ICLR 2022.
+        <a href="https://arxiv.org/abs/2107.14795" target="_blank" rel="noopener">arXiv:2107.14795</a>
+        &nbsp;— <span class="rtag">Latent Array</span></li>
+      <li id="r7">A. Jabri, D. J. Fleet, T. Chen. <i>Scalable Adaptive Computation for
+        Iterative Generation.</i> ICML 2023.
+        <a href="https://arxiv.org/abs/2212.11972" target="_blank" rel="noopener">arXiv:2212.11972</a>
+        &nbsp;— <span class="rtag">Latent Array, RIN</span></li>
+      <li id="r8">M. Haji-Ali, W. Menapace, I. Skorokhodov, D. Park, A. Kag, M. Vasilkovsky,
+        S. Tulyakov, V. Ordonez, A. Siarohin. <i>One Model, Many Budgets: Elastic Latent
+        Interfaces for Diffusion Transformers.</i> 2026.
+        <a href="https://arxiv.org/abs/2603.12245" target="_blank" rel="noopener">arXiv:2603.12245</a></li>
+      <li id="r9">D. Hilbert. <i>Über die stetige Abbildung einer Linie auf ein
+        Flächenstück.</i> Mathematische Annalen 38:459–460, 1891.</li>
+      <li id="r10">E. J. Hu, Y. Shen, P. Wallis, Z. Allen-Zhu, Y. Li, S. Wang, L. Wang, W. Chen.
+        <i>LoRA: Low-Rank Adaptation of Large Language Models.</i> ICLR 2022.
+        <a href="https://arxiv.org/abs/2106.09685" target="_blank" rel="noopener">arXiv:2106.09685</a></li>
+      <li id="r11">J. Geiping, S. McLeish, N. Jain, J. Kirchenbauer, S. Singh, B. R. Bartoldson
+        et al. <i>Scaling up Test-Time Compute with Latent Reasoning: A Recurrent Depth
+        Approach.</i> 2025.
+        <a href="https://arxiv.org/abs/2502.05171" target="_blank" rel="noopener">arXiv:2502.05171</a>
+        &nbsp;— <span class="rtag">prelude / core / coda</span></li>
+      <li id="r12">D. Ghosh, H. Hajishirzi, L. Schmidt. <i>GenEval: An Object-Focused Framework
+        for Evaluating Text-to-Image Alignment.</i> NeurIPS 2023.
+        <a href="https://arxiv.org/abs/2310.11513" target="_blank" rel="noopener">arXiv:2310.11513</a></li>
+      <li id="r13">J. Yu, Y. Xu, J. Y. Koh, T. Luong, G. Baid et al. <i>Scaling Autoregressive
+        Models for Content-Rich Text-to-Image Generation.</i> TMLR 2022.
+        &nbsp;— <span class="rtag">PartiPrompts</span></li>
+      <li id="r14">J. Hessel, A. Holtzman, M. Forbes, R. Le Bras, Y. Choi. <i>CLIPScore: A
+        Reference-free Evaluation Metric for Image Captioning.</i> EMNLP 2021.</li>
+      <li id="r15">Y. Kirstain, A. Polyak, U. Singer, S. Matiana, J. Penna, O. Levy.
+        <i>Pick-a-Pic: An Open Dataset of User Preferences for Text-to-Image Generation.</i>
+        NeurIPS 2023. &nbsp;— <span class="rtag">PickScore</span></li>
+      <li id="r16">J. Xu, X. Liu, Y. Wu, Y. Tong, Q. Li et al. <i>ImageReward: Learning and
+        Evaluating Human Preferences for Text-to-Image Generation.</i> NeurIPS 2023.</li>
+      <li id="r17">S. Changpinyo, P. Sharma, N. Ding, R. Soricut. <i>Conceptual 12M: Pushing
+        Web-Scale Image-Text Pre-Training To Recognize Long-Tail Visual Concepts.</i>
+        CVPR 2021. <a href="https://arxiv.org/abs/2102.08981" target="_blank" rel="noopener">arXiv:2102.08981</a>
+        &nbsp;— <span class="rtag">MiniT2I pretraining</span></li>
+      <li id="r18">J. Chen, J. Xu, W. Peng, Y. Zhang et al. <i>BLIP3-o: A Family of Fully Open
+        Unified Multimodal Models.</i> 2025.
+        <a href="https://arxiv.org/abs/2505.09568" target="_blank" rel="noopener">arXiv:2505.09568</a>
+        &nbsp;— <span class="rtag">BLIP3o-60k</span></li>
+      <li id="r19">J. Chen, P. Cai, Z. Chen, H. Chen, Y. Ji, X. Wang, S. Yang, B. Wang.
+        <i>ShareGPT-4o-Image: Aligning Multimodal Models with GPT-4o-Level Image
+        Generation.</i> 2025.
+        <a href="https://arxiv.org/abs/2506.18095" target="_blank" rel="noopener">arXiv:2506.18095</a></li>
+      <li id="r20">J. Deng, W. Dong, R. Socher, L.-J. Li, K. Li, L. Fei-Fei. <i>ImageNet: A
+        Large-Scale Hierarchical Image Database.</i> CVPR 2009.
+        <a href="https://www.image-net.org" target="_blank" rel="noopener">image-net.org</a>
+        &nbsp;— <span class="rtag">class-conditional runs</span></li>
+    </ol>
+  </div>
+</section>
+
+<!-- ═══ BIBTEX ═════════════════════════════════════════════════════════════ -->
+<section id="bibtex">
+  <div class="wrap">
+    <div class="sechead"><span class="num">✳</span><h2>BibTeX</h2></div>
+<pre class="bib">@misc{zamfir2026elastic,
+  title  = {Elastic Token Compression for Pixel-Space Diffusion Transformers},
+  author = {Zamfir, Eduard and Reisswig, Christian and Wu, Zongwei
+            and Xian, Yongqin and Timofte, Radu},
+  year   = {2026}
+}</pre>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>Code and page released under the MIT licence. The pretrained backbones, the
+    fine-tuning corpus and every evaluation set belong to their own authors and keep their own
+    terms; see Acknowledgements above for what each one is.</p>
+    <p>This website was built with agentic coding. Its content, numbers and checkpoints are
+    faithful to those of the paper.</p>
+  </div>
+</footer>
+
+<div class="tip" id="tip"></div>
+<script src="assets/prompts.js?v=8"></script>
+<script src="app.js?v=19"></script>
+</body>
+</html>
