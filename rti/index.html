@@ -62,7 +62,9 @@
     learned Write returns the core's update to its patch tokens. The backbone stays frozen apart
     from low-rank adapters, and the region count is drawn at random while fine-tuning, so
     <b>one checkpoint runs at every budget</b>, 1024 tokens down to 64. On half the tokens,
-    RTI holds the frozen model's quality at <b>2.11× the speed</b>.</p>
+    RTI holds the frozen model's quality on GenEval and the three preference scores at
+    <b>2.11× the speed</b>. FID is the exception: it recovers most of the reduction's cost
+    but not all of it, +2.4 at that setting.</p>
 
     <figure class="framed" style="margin-top:38px">
       <img src="assets/fig/teaser.webp" alt="Three samples with the uniform patch grid overlaid on top and our region partition below; arrows report how many region tokens cover the area where the grid spends about a hundred patches." loading="lazy">
@@ -131,8 +133,9 @@
           <span class="note" style="margin:0;border:0;padding:0">Click any sample to move the crop · <button class="tab" type="button" id="zoombtn">3×</button></span>
         </div>
         <p class="note">The dense backbone runs on all 1024 patch tokens; every other
-        setting is that sequence cut to the length shown. Dropping a quarter of it, 768 of
-        1024, leaves the image essentially unchanged. Both reductions run inside the same
+        setting is that sequence cut to the length shown. Dropping a quarter of it, 728 of
+        1024, leaves the image essentially unchanged &mdash; and 728 is a length neither
+        checkpoint ever trained on, since the budget is drawn from {64, 128, 256, 512}. Both reductions run inside the same
         interface, so the only difference between the two right-hand columns is the rule that
         forms the groups. Measured speedups are in the results section below.</p>
       </div>
@@ -238,7 +241,10 @@
     <p class="note">Representation retained = explained variance of a middle block's tokens
     after pooling the <i>N</i>=1024 patch tokens to <i>R</i>=256 and scattering back. Adaptive is our
     partition, uniform is the equal-length cut of the same order, skip drops tokens instead
-    of pooling them. Panel (c) is why the first three and last four blocks stay dense.</p>
+    of pooling them. Panel (c) is why the first three and last three blocks stay dense: the
+    core is blocks 3&ndash;13 of the 17 on B/16 and 3&ndash;19 of the 23 on L/16, counted from
+    zero and inclusive, so both leave a three-block prelude and a three-block coda at full
+    resolution.</p>
 
 
     <div class="sechead" style="margin-top:44px;border-bottom-style:dotted">
@@ -305,7 +311,7 @@
         <i>N</i> = 1024 patch tokens and
         follows the <a href="https://arxiv.org/abs/2511.13720" target="_blank"
         rel="noopener">JiT</a><a class="cite" href="#r2">[2]</a> convention of predicting the clean image instead of the noise
-        or the velocity, so its features track image structure. A Hilbert curve<a class="cite" href="#r9">[9]</a> visits every
+        or the velocity, so its features track image structure. A Hilbert curve<a class="cite" href="#r8">[8]</a> visits every
         patch of that grid exactly once, and consecutive positions along it are always
         neighbours in the image. Any contiguous run of the order is therefore a connected
         region, and grouping in two dimensions becomes cutting a line in one.</p>
@@ -347,12 +353,13 @@
       <section class="mblock">
         <h3>Core span and fine-tuning</h3>
         <p>The core is the contiguous span of middle blocks where the depth probe puts the
-        redundancy, 3–13 of 17 on B/16 and 3–19 of 23 on L/16; the prelude and coda stay at
+        redundancy, 3–13 of 17 on B/16 and 3–19 of 23 on L/16 — counted from zero
+        and inclusive, so three blocks of prelude and three of coda in both cases; those stay at
         full resolution. Its extent trades against its width: a longer core must run on more
         region tokens to hold the same quality, a shorter one needs fewer, and at
         matched compute the two are equivalent. The probe fixes where the span sits, not a
         unique length.</p>
-        <p>The trunk stays frozen. We train only LoRA<a class="cite" href="#r10">[10]</a>
+        <p>The trunk stays frozen. We train only LoRA<a class="cite" href="#r9">[9]</a>
         adapters and the Read/Write parameters, on MiniT2I's own fine-tuning data and
         settings. Both are initialised to exact mean-pool and broadcast, so training starts
         from the frozen model's own behaviour. We draw the budget <i>R</i> at each step from
@@ -393,33 +400,39 @@
 
     <div class="tablewrap" style="margin-top:30px">
       <table>
-        <caption>Text-to-image benchmarks. GenEval<a class="cite" href="#r12">[12]</a> measures compositional accuracy; CLIP<a class="cite" href="#r14">[14]</a>,
-        PickScore<a class="cite" href="#r15">[15]</a> and ImageReward<a class="cite" href="#r16">[16]</a> measure alignment and preference, over PartiPrompts<a class="cite" href="#r13">[13]</a>. Speedups are wall-clock
+        <caption>Text-to-image benchmarks. GenEval<a class="cite" href="#r11">[11]</a> measures compositional accuracy; CLIP<a class="cite" href="#r13">[13]</a>,
+        PickScore<a class="cite" href="#r14">[14]</a> and ImageReward<a class="cite" href="#r15">[15]</a> measure alignment and preference, over PartiPrompts<a class="cite" href="#r12">[12]</a>. Speedups are wall-clock
         on one RTX 4090. Token Skip sets a capacity rather than a budget, so 576 is its
-        derived mean image-token count per core block.</caption>
+        derived mean image-token count per core block. The subscript on GenEval is the
+        95% spread of the paired difference against the backbone row of its own block, which
+        therefore carries none.</caption>
         <thead><tr><th>Method</th><th><i>R</i></th><th>GenEval ↑</th><th>CLIP ↑</th><th>Pick ↑</th><th>ImageReward ↑</th><th>Speedup</th></tr></thead>
         <tbody>
           <tr class="group"><td colspan="7">MiniT2I-B/16</td></tr>
           <tr class="dense"><td>Dense backbone</td><td>1024</td><td>87.2</td><td>28.23</td><td>22.45</td><td>1.18</td><td>1.00×</td></tr>
-          <tr><td>Token Skip<a class="cite" href="#r3">[3]</a></td><td>576*</td><td>82.3</td><td>28.08</td><td>21.93</td><td>1.06</td><td>1.19×</td></tr>
-          <tr><td>Feat Sim</td><td>512</td><td>84.7</td><td>28.04</td><td>22.04</td><td>1.07</td><td>1.84×</td></tr>
-          <tr class="ours"><td>RTI (ours)</td><td>512</td><td class="best">87.8</td><td>28.09</td><td>22.30</td><td>1.11</td><td>1.84×</td></tr>
-          <tr><td>Feat Sim</td><td>256</td><td>80.5</td><td>27.73</td><td>21.57</td><td>0.93</td><td>2.15×</td></tr>
-          <tr><td>Latent Array<a class="cite" href="#r6">[6]</a><a class="cite" href="#r7">[7]</a></td><td>256</td><td>45.7</td><td>23.30</td><td>19.78</td><td>−0.65</td><td>2.15×</td></tr>
-          <tr class="ours"><td>RTI (ours)</td><td>256</td><td class="best">84.7</td><td>28.04</td><td>22.06</td><td>1.06</td><td>2.15×</td></tr>
+          <tr><td>Token Skip<a class="cite" href="#r3">[3]</a></td><td>576*</td><td>82.3<span class="pm">±1.7</span></td><td>28.08</td><td>21.93</td><td>1.06</td><td>1.19×</td></tr>
+          <tr><td>Feat Sim</td><td>512</td><td>84.7<span class="pm">±1.6</span></td><td>28.04</td><td>22.04</td><td>1.07</td><td>1.84×</td></tr>
+          <tr class="ours"><td>RTI (ours)</td><td>512</td><td class="best">87.8<span class="pm">±1.5</span></td><td>28.09</td><td>22.30</td><td>1.11</td><td>1.84×</td></tr>
+          <tr><td>Feat Sim</td><td>256</td><td>80.5<span class="pm">±1.9</span></td><td>27.73</td><td>21.57</td><td>0.93</td><td>2.15×</td></tr>
+          <tr><td>Latent Array<a class="cite" href="#r6">[6]</a><a class="cite" href="#r7">[7]</a></td><td>256</td><td>45.7<span class="pm">±3.1</span></td><td>23.30</td><td>19.78</td><td>−0.65</td><td>2.15×</td></tr>
+          <tr class="ours"><td>RTI (ours)</td><td>256</td><td class="best">84.7<span class="pm">±1.7</span></td><td>28.04</td><td>22.06</td><td>1.06</td><td>2.15×</td></tr>
           <tr class="group"><td colspan="7">MiniT2I-L/16</td></tr>
           <tr class="dense"><td>Dense backbone</td><td>1024</td><td>88.1</td><td>28.50</td><td>22.75</td><td>1.23</td><td>1.00×</td></tr>
-          <tr><td>Feat Sim</td><td>512</td><td>83.1</td><td class="best">28.80</td><td>22.34</td><td>1.16</td><td>2.11×</td></tr>
-          <tr class="ours"><td>RTI (ours)</td><td>512</td><td class="best">87.5</td><td>28.58</td><td>22.63</td><td>1.20</td><td>2.11×</td></tr>
-          <tr><td>Feat Sim</td><td>256</td><td>76.5</td><td>28.31</td><td>21.76</td><td>1.01</td><td>2.59×</td></tr>
-          <tr class="ours"><td>RTI (ours)</td><td>256</td><td class="best">86.3</td><td>28.52</td><td>22.37</td><td>1.17</td><td>2.59×</td></tr>
+          <tr><td>Feat Sim</td><td>512</td><td>83.1<span class="pm">±1.9</span></td><td class="best">28.80</td><td>22.34</td><td>1.16</td><td>2.11×</td></tr>
+          <tr class="ours"><td>RTI (ours)</td><td>512</td><td class="best">87.5<span class="pm">±1.3</span></td><td>28.58</td><td>22.63</td><td>1.20</td><td>2.11×</td></tr>
+          <tr><td>Feat Sim</td><td>256</td><td>76.5<span class="pm">±2.3</span></td><td>28.31</td><td>21.76</td><td>1.01</td><td>2.59×</td></tr>
+          <tr class="ours"><td>RTI (ours)</td><td>256</td><td class="best">86.3<span class="pm">±1.6</span></td><td>28.52</td><td>22.37</td><td>1.17</td><td>2.59×</td></tr>
         </tbody>
       </table>
     </div>
-    <p class="note">At B/16 and <i>R</i>=512, RTI scores above its own dense backbone on
-    GenEval (87.8 vs 87.2) while running 1.84× faster. CLIPScore is the one metric where Feat
-    Sim leads at <i>R</i>=512; it is also the least discriminative of the four, and RTI leads
-    on GenEval, PickScore and ImageReward.</p>
+    <p class="note">At B/16 and <i>R</i>=512, RTI scores 87.8 against its dense backbone's
+    87.2 while running 1.84× faster. That +0.6 sits inside the ±1.5 interval on the paired
+    difference, so the row says <i>dense quality at 1.84×</i>, not <i>better than dense</i>.
+    What the block does settle is the comparison between reductions: Feat Sim, trained on the
+    same data with the same LoRA recipe and the same elastic budget protocol, reaches 84.7 at
+    that budget, 3.1 points down and outside the interval.
+    CLIPScore is the one metric where Feat Sim leads at <i>R</i>=512; it is also the least
+    discriminative of the four, and RTI leads on GenEval, PickScore and ImageReward.</p>
 
     <div class="tablewrap" style="margin-top:26px">
       <table>
@@ -444,10 +457,67 @@
   <div class="wrap wide">
     <div class="sechead">
       <span class="num">05</span><h2>Ablations</h2>
-      <span class="sub">The order · the step trade-off · a second task</span>
+      <span class="sub">Elasticity · the components · the order · a second task</span>
     </div>
 
-    <div class="abgrid">
+    <div class="duo" style="align-items:start">
+      <div>
+        <h3 style="font-family:var(--mono);font-size:13px;letter-spacing:.1em;text-transform:uppercase">Budgets it never trained on</h3>
+        <p class="small">The budget is drawn from {64, 128, 256, 512} during fine-tuning, so
+        those four are the only lengths the checkpoint has ever run. Queried at three it has
+        not — 96, 192, 384 — it lands between its trained neighbours every time, with no
+        step at the trained values. The budget is a knob that can be set after training, not a
+        set of four modes. The gallery at the top of this page is the same point: its richest
+        stop is <i>R</i>=728, which neither checkpoint trained on.</p>
+        <div class="tablewrap" style="margin-top:10px">
+          <table>
+            <caption>MiniT2I-B/16, one elastic checkpoint, GenEval overall. The dense
+            backbone scores 87.2. The same holds on the class-conditional JiT-B/16: the untrained
+            <i>R</i>=130 gives 6.23 FID against 6.34 at the trained <i>R</i>=128.</caption>
+            <thead><tr><th><i>R</i></th><th>Drawn in training</th><th>GenEval ↑</th></tr></thead>
+            <tbody>
+              <tr><td>512</td><td><span class="yes">✓</span></td><td>87.8</td></tr>
+              <tr><td>384</td><td><span class="no">✗</span></td><td>86.4</td></tr>
+              <tr><td>256</td><td><span class="yes">✓</span></td><td>84.7</td></tr>
+              <tr><td>192</td><td><span class="no">✗</span></td><td>84.6</td></tr>
+              <tr><td>128</td><td><span class="yes">✓</span></td><td>81.3</td></tr>
+              <tr><td>96</td><td><span class="no">✗</span></td><td>79.0</td></tr>
+              <tr><td>64</td><td><span class="yes">✓</span></td><td>71.8</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <h3 style="font-family:var(--mono);font-size:13px;letter-spacing:.1em;text-transform:uppercase">What each part contributes</h3>
+        <p class="small">One design choice swapped at a time, everything else held, retrained
+        under the same recipe. Cutting at the largest feature gaps rather than evenly is worth
+        2.7 points at <i>R</i>=128, and less as the budget grows, since at <i>R</i>=256 a
+        region holds four patches and an even cut already lands close to the adaptive one.
+        The learned <b>Read</b>/<b>Write</b> is worth 7.2 over a plain mean and broadcast.
+        Anchoring is worth the most: free latents in place of region tokens fall to the Latent
+        Array row.</p>
+        <div class="tablewrap" style="margin-top:10px">
+          <table>
+            <caption>MiniT2I-B/16, GenEval overall, each arm against RTI at its own
+            budget. The interface arm swaps <b>Read</b> and <b>Write</b> together, so the
+            attention pooling, the size embedding and the per-token <i>g</i> of <b>Write</b>
+            are not separated from one another. Rebuilding the partition at every step is not
+            ablated here either; it is motivated by panel (b) of the method section and costs
+            under 2% of the forward pass.</caption>
+            <thead><tr><th>Swap</th><th><i>R</i></th><th>GenEval ↑</th><th>Δ</th></tr></thead>
+            <tbody>
+              <tr class="ours"><td>RTI, unchanged</td><td>128</td><td class="best">81.3</td><td>—</td></tr>
+              <tr><td>Even cuts, not feature gaps</td><td>128</td><td>78.6</td><td>−2.7</td></tr>
+              <tr class="ours"><td>RTI, unchanged</td><td>256</td><td class="best">84.7</td><td>—</td></tr>
+              <tr><td>Mean pool + broadcast</td><td>256</td><td>77.5</td><td>−7.2</td></tr>
+              <tr><td>Free latents, no anchoring</td><td>256</td><td>45.7</td><td>−39.0</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="duo" style="align-items:start;margin-top:38px">
       <div>
         <h3 style="font-family:var(--mono);font-size:13px;letter-spacing:.1em;text-transform:uppercase">The choice of order</h3>
         <p class="small">Contiguity is a property of the order, so we swapped it and
@@ -467,28 +537,40 @@
         compute-optimal one.</p>
         <div class="chart" style="margin-top:10px"><div id="ch-steps"></div><div class="legend" id="lg-steps"></div></div>
       </div>
-      <div>
-        <h3 style="font-family:var(--mono);font-size:13px;letter-spacing:.1em;text-transform:uppercase">Class-conditional transfer</h3>
-        <p class="small">We apply the same interface to a frozen pixel-space
-        JiT<a class="cite" href="#r2">[2]</a>-L/16 on ImageNet-256, with no text stream and the partition read from its features unchanged.
-        RTI leads feature-similarity merging at every budget on both FID and Inception Score.
-        The gap is largest at the middle budget and narrows at both ends: at <i>R</i>=193
-        little is reduced, at <i>R</i>=64 both methods degrade.</p>
-        <div class="tablewrap" style="margin-top:10px">
-          <table>
-            <caption>ImageNet-256, 50K samples, cfg 3.0, 50 steps. Inception Score follows
-            the same ordering, 313.5 / 303.8 / 253.0 against 291.6 / 252.8 / 229.2.
-            torch-fidelity protocol, not comparable to the MJHQ numbers above.</caption>
-            <thead><tr><th><i>R</i></th><th>RTI FID ↓</th><th>Feat Sim</th><th>Δ</th></tr></thead>
-            <tbody>
-              <tr><td>193</td><td class="best">2.42</td><td>2.73</td><td>−0.30</td></tr>
-              <tr><td>130</td><td class="best">2.69</td><td>4.53</td><td>−1.83</td></tr>
-              <tr><td>64</td><td class="best">4.71</td><td>6.28</td><td>−1.57</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
     </div>
+
+    <div class="sechead" style="margin-top:44px;border-bottom-style:dotted">
+      <span class="num">05b</span><h2>Class-conditional transfer</h2>
+      <span class="sub">Frozen pixel-space JiT<a class="cite" href="#r2">[2]</a>-L/16 · ImageNet-256</span>
+    </div>
+    <p class="lede">The same interface on a different task and backbone family: no text
+    stream, the partition read from the new model's features unchanged, everything else the
+    same recipe. RTI leads feature-similarity merging at every budget on both FID and
+    Inception Score. The gap is largest at the middle budget and narrows at both ends: at
+    <i>R</i>=193 little is reduced, at <i>R</i>=64 both methods degrade.</p>
+    <div class="tablewrap" style="margin-top:16px">
+      <table>
+        <caption>ImageNet-256, 50K samples, cfg 3.0, 50 Heun steps, torch-fidelity — not
+        comparable to the MJHQ numbers above. The grid is 16×16=256 patch tokens, so the
+        three budgets are 75/50/25% of them; speedup is token compute, not wall-clock. The
+        dense row is the published JiT-L/16 result under this protocol, not our own
+        re-measurement.</caption>
+        <thead><tr><th>Method</th><th><i>R</i></th><th>FID ↓</th><th>IS ↑</th><th>Token compute</th></tr></thead>
+        <tbody>
+          <tr class="dense"><td>Dense JiT-L/16<a class="cite" href="#r2">[2]</a></td><td>256</td><td>2.36</td><td>298.5</td><td>1.00×</td></tr>
+          <tr class="ours"><td>RTI (ours)</td><td>193</td><td class="best">2.42</td><td class="best">313.5</td><td>1.14×</td></tr>
+          <tr><td>Feat Sim</td><td>193</td><td>2.73</td><td>291.6</td><td>1.14×</td></tr>
+          <tr class="ours"><td>RTI (ours)</td><td>130</td><td class="best">2.69</td><td class="best">303.8</td><td>1.33×</td></tr>
+          <tr><td>Feat Sim</td><td>130</td><td>4.53</td><td>252.8</td><td>1.33×</td></tr>
+          <tr class="ours"><td>RTI (ours)</td><td>64</td><td class="best">4.71</td><td class="best">253.0</td><td>1.61×</td></tr>
+          <tr><td>Feat Sim</td><td>64</td><td>6.28</td><td>229.2</td><td>1.61×</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">At <i>R</i>=193, three quarters of the patch tokens and 88% of the dense
+    token compute, RTI is 0.06 FID off the dense model and above it on Inception Score. A
+    higher Inception Score is not by itself evidence of better images — the metric rewards
+    confident, prototypical class predictions — so the FID column carries the claim.</p>
   </div>
 </section>
 
@@ -567,13 +649,13 @@
     those models; we train only LoRA adapters and the Read/Write interface on top of them.</p>
 
     <p class="lede">MiniT2I is pretrained on the recaptioned
-    <a href="https://huggingface.co/datasets/CaptionEmporium/conceptual-captions-cc12m-llavanext" target="_blank" rel="noopener">Conceptual Captions 12M</a><a class="cite" href="#r17">[17]</a>
+    <a href="https://huggingface.co/datasets/CaptionEmporium/conceptual-captions-cc12m-llavanext" target="_blank" rel="noopener">Conceptual Captions 12M</a><a class="cite" href="#r16">[16]</a>
     and fine-tuned on a 120K-image mix of
-    <a href="https://huggingface.co/datasets/BLIP3o/BLIP3o-60k" target="_blank" rel="noopener">BLIP3o-60k</a><a class="cite" href="#r18">[18]</a>,
+    <a href="https://huggingface.co/datasets/BLIP3o/BLIP3o-60k" target="_blank" rel="noopener">BLIP3o-60k</a><a class="cite" href="#r17">[17]</a>,
     <a href="https://huggingface.co/datasets/OpenDatasets/dalle-3-dataset" target="_blank" rel="noopener">OpenDatasets/dalle-3-dataset</a>, and
-    <a href="https://huggingface.co/datasets/FreedomIntelligence/ShareGPT-4o-Image" target="_blank" rel="noopener">ShareGPT-4o-Image</a><a class="cite" href="#r19">[19]</a>;
+    <a href="https://huggingface.co/datasets/FreedomIntelligence/ShareGPT-4o-Image" target="_blank" rel="noopener">ShareGPT-4o-Image</a><a class="cite" href="#r18">[18]</a>;
     our text-to-image runs use that same fine-tuning mix. The class-conditional runs use
-    <a href="https://www.image-net.org" target="_blank" rel="noopener">ImageNet-1K</a><a class="cite" href="#r20">[20]</a>.</p>
+    <a href="https://www.image-net.org" target="_blank" rel="noopener">ImageNet-1K</a><a class="cite" href="#r19">[19]</a>.</p>
 
     <p class="lede">The MiniT2I and JiT code releases are MIT-licensed, and so are our code
     and checkpoints. The datasets keep their own terms: BLIP3o-60k and ShareGPT-4o-Image are
@@ -617,46 +699,42 @@
         Iterative Generation.</i> ICML 2023.
         <a href="https://arxiv.org/abs/2212.11972" target="_blank" rel="noopener">arXiv:2212.11972</a>
         &nbsp;— <span class="rtag">Latent Array, RIN</span></li>
-      <li id="r8">M. Haji-Ali, W. Menapace, I. Skorokhodov, D. Park, A. Kag, M. Vasilkovsky,
-        S. Tulyakov, V. Ordonez, A. Siarohin. <i>One Model, Many Budgets: Elastic Latent
-        Interfaces for Diffusion Transformers.</i> 2026.
-        <a href="https://arxiv.org/abs/2603.12245" target="_blank" rel="noopener">arXiv:2603.12245</a></li>
-      <li id="r9">D. Hilbert. <i>Über die stetige Abbildung einer Linie auf ein
+      <li id="r8">D. Hilbert. <i>Über die stetige Abbildung einer Linie auf ein
         Flächenstück.</i> Mathematische Annalen 38:459–460, 1891.</li>
-      <li id="r10">E. J. Hu, Y. Shen, P. Wallis, Z. Allen-Zhu, Y. Li, S. Wang, L. Wang, W. Chen.
+      <li id="r9">E. J. Hu, Y. Shen, P. Wallis, Z. Allen-Zhu, Y. Li, S. Wang, L. Wang, W. Chen.
         <i>LoRA: Low-Rank Adaptation of Large Language Models.</i> ICLR 2022.
         <a href="https://arxiv.org/abs/2106.09685" target="_blank" rel="noopener">arXiv:2106.09685</a></li>
-      <li id="r11">J. Geiping, S. McLeish, N. Jain, J. Kirchenbauer, S. Singh, B. R. Bartoldson
+      <li id="r10">J. Geiping, S. McLeish, N. Jain, J. Kirchenbauer, S. Singh, B. R. Bartoldson
         et al. <i>Scaling up Test-Time Compute with Latent Reasoning: A Recurrent Depth
         Approach.</i> 2025.
         <a href="https://arxiv.org/abs/2502.05171" target="_blank" rel="noopener">arXiv:2502.05171</a>
         &nbsp;— <span class="rtag">prelude / core / coda</span></li>
-      <li id="r12">D. Ghosh, H. Hajishirzi, L. Schmidt. <i>GenEval: An Object-Focused Framework
+      <li id="r11">D. Ghosh, H. Hajishirzi, L. Schmidt. <i>GenEval: An Object-Focused Framework
         for Evaluating Text-to-Image Alignment.</i> NeurIPS 2023.
         <a href="https://arxiv.org/abs/2310.11513" target="_blank" rel="noopener">arXiv:2310.11513</a></li>
-      <li id="r13">J. Yu, Y. Xu, J. Y. Koh, T. Luong, G. Baid et al. <i>Scaling Autoregressive
+      <li id="r12">J. Yu, Y. Xu, J. Y. Koh, T. Luong, G. Baid et al. <i>Scaling Autoregressive
         Models for Content-Rich Text-to-Image Generation.</i> TMLR 2022.
         &nbsp;— <span class="rtag">PartiPrompts</span></li>
-      <li id="r14">J. Hessel, A. Holtzman, M. Forbes, R. Le Bras, Y. Choi. <i>CLIPScore: A
+      <li id="r13">J. Hessel, A. Holtzman, M. Forbes, R. Le Bras, Y. Choi. <i>CLIPScore: A
         Reference-free Evaluation Metric for Image Captioning.</i> EMNLP 2021.</li>
-      <li id="r15">Y. Kirstain, A. Polyak, U. Singer, S. Matiana, J. Penna, O. Levy.
+      <li id="r14">Y. Kirstain, A. Polyak, U. Singer, S. Matiana, J. Penna, O. Levy.
         <i>Pick-a-Pic: An Open Dataset of User Preferences for Text-to-Image Generation.</i>
         NeurIPS 2023. &nbsp;— <span class="rtag">PickScore</span></li>
-      <li id="r16">J. Xu, X. Liu, Y. Wu, Y. Tong, Q. Li et al. <i>ImageReward: Learning and
+      <li id="r15">J. Xu, X. Liu, Y. Wu, Y. Tong, Q. Li et al. <i>ImageReward: Learning and
         Evaluating Human Preferences for Text-to-Image Generation.</i> NeurIPS 2023.</li>
-      <li id="r17">S. Changpinyo, P. Sharma, N. Ding, R. Soricut. <i>Conceptual 12M: Pushing
+      <li id="r16">S. Changpinyo, P. Sharma, N. Ding, R. Soricut. <i>Conceptual 12M: Pushing
         Web-Scale Image-Text Pre-Training To Recognize Long-Tail Visual Concepts.</i>
         CVPR 2021. <a href="https://arxiv.org/abs/2102.08981" target="_blank" rel="noopener">arXiv:2102.08981</a>
         &nbsp;— <span class="rtag">MiniT2I pretraining</span></li>
-      <li id="r18">J. Chen, J. Xu, W. Peng, Y. Zhang et al. <i>BLIP3-o: A Family of Fully Open
+      <li id="r17">J. Chen, J. Xu, W. Peng, Y. Zhang et al. <i>BLIP3-o: A Family of Fully Open
         Unified Multimodal Models.</i> 2025.
         <a href="https://arxiv.org/abs/2505.09568" target="_blank" rel="noopener">arXiv:2505.09568</a>
         &nbsp;— <span class="rtag">BLIP3o-60k</span></li>
-      <li id="r19">J. Chen, P. Cai, Z. Chen, H. Chen, Y. Ji, X. Wang, S. Yang, B. Wang.
+      <li id="r18">J. Chen, P. Cai, Z. Chen, H. Chen, Y. Ji, X. Wang, S. Yang, B. Wang.
         <i>ShareGPT-4o-Image: Aligning Multimodal Models with GPT-4o-Level Image
         Generation.</i> 2025.
         <a href="https://arxiv.org/abs/2506.18095" target="_blank" rel="noopener">arXiv:2506.18095</a></li>
-      <li id="r20">J. Deng, W. Dong, R. Socher, L.-J. Li, K. Li, L. Fei-Fei. <i>ImageNet: A
+      <li id="r19">J. Deng, W. Dong, R. Socher, L.-J. Li, K. Li, L. Fei-Fei. <i>ImageNet: A
         Large-Scale Hierarchical Image Database.</i> CVPR 2009.
         <a href="https://www.image-net.org" target="_blank" rel="noopener">image-net.org</a>
         &nbsp;— <span class="rtag">class-conditional runs</span></li>
