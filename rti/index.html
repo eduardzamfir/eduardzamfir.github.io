@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Serif:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=34">
+<link rel="stylesheet" href="style.css?v=37">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%23FBFAF7'/><rect x='2' y='2' width='16' height='16' fill='none' stroke='%234285F4' stroke-width='2'/><rect x='20' y='2' width='10' height='10' fill='none' stroke='%2314161A' stroke-width='2'/><rect x='20' y='14' width='5' height='5' fill='none' stroke='%2314161A' stroke-width='2'/><rect x='2' y='21' width='9' height='9' fill='none' stroke='%2314161A' stroke-width='2'/></svg>">
 </head>
 <body>
@@ -54,29 +54,38 @@
       <a class="btn" href="https://x.com/eduard__zamfir/status/2098442321360527498" target="_blank" rel="noopener"><span class="ico">▸</span> Tweet</a>
     </div>
 
-    <p class="claim">A pretrained diffusion transformer spends one token on every patch, in
-    every layer and at every step. We keep the first and last blocks dense and run the middle
-    on <b>a few hundred content-sized region tokens</b>: large over flat areas, single patches
-    over detail.</p>
-
-    <p class="claim">We cut a Hilbert ordering of the patch tokens where the model's own
-    features change most, so grouping in two dimensions becomes cutting a line in one. A learned Read pools each run into one token carrying its size and position, and a
-    learned Write returns the core's update to its patch tokens. The backbone stays frozen apart
-    from low-rank adapters, and the region count is drawn at random while fine-tuning, so
-    <b>one checkpoint runs at every budget</b>, 1024 tokens down to 64. On half the tokens,
-    RTI holds the frozen model's quality on GenEval and the three preference scores at
-    <b>2.11× the speed</b>. FID is the exception: it recovers most of the reduction's cost
-    but not all of it, +2.4 at that setting.</p>
-
-    <figure class="framed" style="margin-top:38px">
-      <img src="assets/fig/teaser.webp" alt="Three samples with the uniform patch grid overlaid on top and our region partition below; arrows report how many region tokens cover the area where the grid spends about a hundred patches." loading="lazy">
-      <figcaption><b>Content-adaptive tokenization.</b> The same three images under a uniform
-      grid (top) and our partition (bottom). Each arrow reports how many region tokens cover
-      the area where the grid spends about a hundred patch tokens: <b>4</b> over a plain backdrop
-      and <b>3</b> over empty sky, but <b>23</b> over the balloon, where the detail is. Size
-      follows content in both directions. The overlays compare <i>tokenizations</i>, not
-      outputs.</figcaption>
+    <figure class="framed" style="margin-top:30px">
+      <video src="assets/race_p00.mp4" poster="assets/race_p00.jpg" autoplay muted loop playsinline preload="metadata" aria-label="Side-by-side sampling race: 1024 patch tokens against 512 region tokens, same prompt and seed."></video>
+      <figcaption><b>Half the tokens, same image.</b> Same prompt, seed and 100-step
+      sampler; 512 region tokens finish 2.1× faster than 1024 patch tokens.</figcaption>
     </figure>
+
+    <div class="teaser">
+      <div>
+        <p class="claim">A pretrained diffusion transformer spends one token on every patch, in
+        every layer and at every step. We keep the first and last blocks dense and run the middle
+        on <b>a few hundred content-sized region tokens</b>: large over flat areas, single patches
+        over detail.</p>
+
+        <p class="claim">We cut a Hilbert ordering of the patch tokens where the model's own
+        features change most, so grouping in two dimensions becomes cutting a line in one. A learned Read pools each run into one token carrying its size and position, and a
+        learned Write returns the core's update to its patch tokens. The backbone stays frozen apart
+        from low-rank adapters, and the region count is drawn at random while fine-tuning, so
+        <b>one checkpoint runs at every budget</b>, 1024 tokens down to 64. On half the tokens,
+        RTI holds the frozen model's quality on GenEval and the three preference scores at
+        <b>2.11× the speed</b>. FID is the exception: it recovers most of the reduction's cost
+        but not all of it, +2.4 at that setting.</p>
+      </div>
+      <figure class="framed">
+        <img src="assets/fig/teaser.webp" alt="Three samples with the uniform patch grid overlaid on top and our region partition below; arrows report how many region tokens cover the area where the grid spends about a hundred patches." loading="lazy">
+        <figcaption><b>Content-adaptive tokenization.</b> The same three images under a uniform
+        grid (top) and our partition (bottom). Each arrow reports how many region tokens cover
+        the area where the grid spends about a hundred patch tokens: <b>4</b> over a plain backdrop
+        and <b>3</b> over empty sky, but <b>23</b> over the balloon, where the detail is. Size
+        follows content in both directions. The overlays compare <i>tokenizations</i>, not
+        outputs.</figcaption>
+      </figure>
+    </div>
   </div>
 </header>
 

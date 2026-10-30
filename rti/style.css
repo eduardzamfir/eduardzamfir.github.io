@@ -247,10 +247,14 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 20px; border-radius
 .vlabels span { padding: 7px 9px; color: var(--muted); }
 .vlabels span + span { border-left: 1px solid var(--rule); }
 .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+/* abstract on the left, teaser figure on the right; the figure drops by the
+   first paragraph's top margin so the two start on the same line */
+.teaser { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; align-items: start; }
+.teaser > figure { margin-top: 26px; }
 
 /* ── figures ─────────────────────────────────────────────────────────────── */
 figure { margin: 0 0 8px; }
-figure img { width: 100%; }
+figure img, figure video { width: 100%; }
 figcaption { font-size: 15.5px; color: var(--muted); margin-top: 10px; max-width: var(--measure); }
 figcaption b { color: var(--ink-2); }
 .framed { border: 1px solid var(--line); background: var(--surface); padding: 14px; }
@@ -308,6 +312,7 @@ footer a:hover { color: var(--accent); }
   .explorer { grid-template-columns: 1fr; }
   .thumbs { grid-template-columns: repeat(6, 1fr); }
   .duo { grid-template-columns: 1fr; }
+  .teaser { grid-template-columns: 1fr; gap: 0; }
 }
 @media (max-width: 700px) {
   body { font-size: 17px; }
